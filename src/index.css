@@ -1,0 +1,311 @@
+/* ============================================================================
+   Invest Master — global styles & design tokens
+   Mobile-first, theme-aware (dark / light), finance-themed.
+   ========================================================================== */
+
+:root {
+  /* Brand */
+  --brand: #6366f1;
+  --brand-2: #8b5cf6;
+  --accent: #22d3ee;
+  --up: #22c55e;
+  --down: #ef4444;
+  --gold: #f59e0b;
+
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 22px;
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.35);
+
+  --maxw: 480px;
+  --nav-h: 68px;
+}
+
+/* ── Dark theme (default) ─────────────────────────────────────────────── */
+:root,
+[data-theme='dark'] {
+  --bg: #0b1020;
+  --bg-2: #121a2f;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-solid: #161f38;
+  --border: rgba(255, 255, 255, 0.09);
+  --text: #eef2ff;
+  --text-dim: #9aa6c4;
+  --text-faint: #6b7799;
+  --glow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 8px 30px rgba(99, 102, 241, 0.18);
+}
+
+/* ── Light theme ──────────────────────────────────────────────────────── */
+[data-theme='light'] {
+  --bg: #eef1f8;
+  --bg-2: #e5e9f5;
+  --surface: rgba(255, 255, 255, 0.75);
+  --surface-2: rgba(255, 255, 255, 0.95);
+  --surface-solid: #ffffff;
+  --border: rgba(15, 23, 42, 0.08);
+  --text: #0f172a;
+  --text-dim: #55617d;
+  --text-faint: #8a94ad;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 24px 50px rgba(15, 23, 42, 0.16);
+  --glow: 0 0 0 1px rgba(99, 102, 241, 0.2), 0 10px 30px rgba(99, 102, 241, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* App shell — a phone-sized frame centered on large screens */
+.app-shell {
+  position: relative;
+  width: 100%;
+  max-width: var(--maxw);
+  height: 100dvh;
+  margin: 0 auto;
+  background: radial-gradient(
+      1200px 600px at 50% -10%,
+      rgba(99, 102, 241, 0.16),
+      transparent 60%
+    ),
+    linear-gradient(180deg, var(--bg), var(--bg-2));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 16px calc(var(--nav-h) + 24px);
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Reusable primitives ──────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+}
+
+.card-pad {
+  padding: 16px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin: 22px 4px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.muted {
+  color: var(--text-dim);
+}
+.faint {
+  color: var(--text-faint);
+}
+
+.up {
+  color: var(--up);
+}
+.down {
+  color: var(--down);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pill-up {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--up);
+}
+.pill-down {
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--down);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+.between {
+  justify-content: space-between;
+}
+.gap-8 {
+  gap: 8px;
+}
+.gap-12 {
+  gap: 12px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  transition: transform 0.12s ease, filter 0.12s ease, background 0.2s ease;
+  user-select: none;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff;
+  box-shadow: var(--glow);
+}
+.btn-buy {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+}
+.btn-sell {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff;
+}
+.btn-ghost {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-block {
+  width: 100%;
+}
+
+/* Progress bar */
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--accent));
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Risk badges */
+.risk {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.risk-Low {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+.risk-Medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.risk-High {
+  background: rgba(249, 115, 22, 0.16);
+  color: #fb923c;
+}
+.risk-Very.risk-High,
+.risk-VeryHigh {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+}
+
+/* Utility */
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+}
+.hidden {
+  display: none;
+}
+.clickable {
+  cursor: pointer;
+}
