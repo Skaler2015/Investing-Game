@@ -253,6 +253,38 @@ export interface Business {
   purchasedMonth: number;
 }
 
+export type PropertyType = 'residential' | 'commercial' | 'industrial' | 'agricultural';
+
+/** Static definition of a buyable property. */
+export interface PropertyDef {
+  id: string;
+  name: string;
+  icon: string;
+  type: PropertyType;
+  price: number;
+  /** Monthly rent collected. */
+  monthlyRent: number;
+  /** Monthly upkeep cost. */
+  maintenance: number;
+  /** Annual property-tax rate on current value. */
+  taxRate: number;
+  /** Annual appreciation rate. */
+  appreciation: number;
+  description: string;
+}
+
+/** An owned property instance (value appreciates each month). */
+export interface Property {
+  id: string;
+  defId: string;
+  purchaseMonth: number;
+  purchasePrice: number;
+  /** Current appraised value (grows with appreciation). */
+  currentValue: number;
+  /** Whether the property is rented out. */
+  rented: boolean;
+}
+
 export interface LeaderboardEntry {
   id: string;
   name: string;
@@ -273,7 +305,8 @@ export type ScreenId =
   | 'leaderboard'
   | 'profile'
   | 'bank'
-  | 'business';
+  | 'business'
+  | 'realestate';
 
 /** Ephemeral toast/notification surfaced to the player. */
 export interface Toast {

@@ -34,6 +34,7 @@ import {
 } from '../engine/insights';
 import { bankEquity } from '../engine/banking';
 import { businessesEquity, businessesMonthlyProfit } from '../engine/business';
+import { propertiesEquity, propertiesMonthlyIncome } from '../engine/realEstate';
 import { creditLabel } from '../data/banking';
 import type { Asset } from '../types';
 import {
@@ -59,6 +60,7 @@ export function Dashboard() {
   const month = useGameStore((s) => s.month);
   const bank = useGameStore((s) => s.bank);
   const businesses = useGameStore((s) => s.businesses);
+  const properties = useGameStore((s) => s.properties);
 
   const [selected, setSelected] = useState<Asset | null>(null);
 
@@ -66,8 +68,10 @@ export function Dashboard() {
   const bankNet = bankEquity(bank);
   const bizNet = businessesEquity(businesses);
   const bizProfit = businessesMonthlyProfit(businesses, assets);
+  const reNet = propertiesEquity(properties);
+  const reIncome = propertiesMonthlyIncome(properties);
   const loanBalance = bank.loans.reduce((sum, l) => sum + l.balance, 0);
-  const netWorth = computeNetWorth(player.cash, holdings, assets) + bankNet + bizNet;
+  const netWorth = computeNetWorth(player.cash, holdings, assets) + bankNet + bizNet + reNet;
   const dailyPnl = netWorth - netWorthDayStart;
   const dailyPnlPct = netWorthDayStart > 0 ? (dailyPnl / netWorthDayStart) * 100 : 0;
   const level = resolveLevel(player.xp);
@@ -264,6 +268,20 @@ export function Dashboard() {
               {businesses.length === 0
                 ? 'Build a business empire — buy your first venture'
                 : `${businesses.length} owned · ${formatCurrency(bizProfit, { sign: true })}/mo profit`}
+            </span>
+          </div>
+          <ChevronRight size={18} className="faint" />
+        </button>
+
+        {/* Real estate quick access */}
+        <button className="glass-card bank-card" onClick={() => setScreen('realestate')}>
+          <div className="bank-card-ic">🏠</div>
+          <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>Real Estate</span>
+            <span className="faint" style={{ fontSize: 11.5 }}>
+              {properties.length === 0
+                ? 'Buy property for rent + appreciation'
+                : `${properties.length} owned · rent ${formatCurrency(reIncome, { sign: true })}/mo`}
             </span>
           </div>
           <ChevronRight size={18} className="faint" />

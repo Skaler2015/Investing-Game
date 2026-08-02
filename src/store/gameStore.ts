@@ -15,12 +15,14 @@ import type {
   BankState,
   LoanType,
   Business,
+  Property,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
 import { getCareer } from '../data/careers';
 import { maybeLifeEvent } from '../data/lifeEvents';
 import { CREDIT, FD_PRODUCTS, loanProduct } from '../data/banking';
 import { getBusinessDef } from '../data/businesses';
+import { getPropertyDef } from '../data/realEstate';
 import {
   emiFor,
   bankEquity,
@@ -34,6 +36,12 @@ import {
   businessesEquity,
   upgradeCost,
 } from '../engine/business';
+import {
+  propertyMonthlyNet,
+  appreciate,
+  propertiesEquity,
+  realEstateEconomyFactor,
+} from '../engine/realEstate';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
@@ -110,6 +118,8 @@ interface GameSnapshot {
   bank: BankState;
   /** Owned businesses (tycoon layer). */
   businesses: Business[];
+  /** Owned real-estate properties. */
+  properties: Property[];
 }
 
 interface GameState extends GameSnapshot {
@@ -152,6 +162,11 @@ interface GameState extends GameSnapshot {
   upgradeBusiness: (id: string) => { ok: boolean; message: string };
   toggleMarketing: (id: string) => void;
   sellBusiness: (id: string) => { ok: boolean; message: string };
+
+  // real estate
+  buyProperty: (defId: string) => { ok: boolean; message: string };
+  togglePropertyRent: (id: string) => void;
+  sellProperty: (id: string) => { ok: boolean; message: string };
 
   // ui
   setScreen: (screen: ScreenId) => void;
@@ -221,6 +236,7 @@ function freshSnapshot(name: string): GameSnapshot {
     ledger: [],
     bank: freshBank(),
     businesses: [],
+    properties: [],
   };
 }
 
@@ -240,6 +256,7 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
     ledger: snap.ledger ?? [],
     bank: snap.bank ?? freshBank(),
     businesses: snap.businesses ?? [],
+    properties: snap.properties ?? [],
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -293,7 +310,8 @@ function achievementContext(s: GameState): AchievementContext {
   const netWorth =
     computeNetWorth(s.player.cash, s.holdings, s.assets) +
     bankEquity(s.bank) +
-    businessesEquity(s.businesses);
+    businessesEquity(s.businesses) +
+    propertiesEquity(s.properties);
   const classes = new Set(
     s.holdings
       .filter((h) => h.quantity > 0)
@@ -379,6 +397,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       ledger: s.ledger,
       bank: s.bank,
       businesses: s.businesses,
+      properties: s.properties,
     };
     void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
@@ -602,6 +621,58 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().pushToast({ title: `Sold ${def.name}`, message: `+${proceeds.toLocaleString('en-IN')} (85% of value)`, kind: 'info' });
     get().save();
     return { ok: true, message: 'Business sold' };
+  },
+
+  buyProperty: (defId) => {
+    const s = get();
+    const def = getPropertyDef(defId);
+    if (!def) return { ok: false, message: 'Property not found' };
+    if (def.price > s.player.cash) return { ok: false, message: 'Not enough cash' };
+    const prop: Property = {
+      id: uid('prop'),
+      defId,
+      purchaseMonth: s.month,
+      purchasePrice: def.price,
+      currentValue: def.price,
+      rented: true,
+    };
+    set({
+      player: { ...s.player, cash: s.player.cash - def.price },
+      properties: [...s.properties, prop],
+    });
+    get().pushToast({ title: `Bought ${def.name} 🏠`, message: `−${def.price.toLocaleString('en-IN')} · earns rent`, kind: 'success' });
+    evaluateAchievements(get, set);
+    get().save();
+    return { ok: true, message: 'Property acquired' };
+  },
+
+  togglePropertyRent: (id) => {
+    const s = get();
+    set({
+      properties: s.properties.map((p) => (p.id === id ? { ...p, rented: !p.rented } : p)),
+    });
+    get().save();
+  },
+
+  sellProperty: (id) => {
+    const s = get();
+    const prop = s.properties.find((p) => p.id === id);
+    const def = prop && getPropertyDef(prop.defId);
+    if (!prop || !def) return { ok: false, message: 'Property not found' };
+    // Selling costs ~2% in fees.
+    const proceeds = Math.round(prop.currentValue * 0.98);
+    const gain = proceeds - prop.purchasePrice;
+    set({
+      player: { ...s.player, cash: s.player.cash + proceeds },
+      properties: s.properties.filter((p) => p.id !== id),
+    });
+    get().pushToast({
+      title: `Sold ${def.name}`,
+      message: `+${proceeds.toLocaleString('en-IN')} · ${gain >= 0 ? 'gain' : 'loss'} ${gain >= 0 ? '+' : ''}${gain.toLocaleString('en-IN')}`,
+      kind: gain >= 0 ? 'success' : 'info',
+    });
+    get().save();
+    return { ok: true, message: 'Property sold' };
   },
 
   buy: (assetId, quantity) => {
@@ -901,7 +972,27 @@ function advanceMonth(get: GetFn, set: SetFn) {
     });
   }
 
-  const cash = Math.max(0, cashAfterLife + bankResult.cashDelta + bizProfit);
+  // Real estate: net rent + monthly appreciation of each property.
+  const reEf = realEstateEconomyFactor(s.assets);
+  const reEntries: LedgerEntry[] = [];
+  let reNet = 0;
+  const properties = s.properties.map((p) => {
+    const def = getPropertyDef(p.defId);
+    if (!def) return p;
+    const net = propertyMonthlyNet(def, p);
+    reNet += net;
+    reEntries.push({
+      id: uid('led'),
+      month,
+      label: `${def.name} rent`,
+      amount: net,
+      kind: net >= 0 ? 'passive' : 'expense',
+      timestamp: now,
+    });
+    return { ...p, currentValue: appreciate(def, p, reEf) };
+  });
+
+  const cash = Math.max(0, cashAfterLife + bankResult.cashDelta + bizProfit + reNet);
 
   const bankEntries: LedgerEntry[] = bankResult.ledger.map((e) => ({
     id: uid('led'),
@@ -912,11 +1003,12 @@ function advanceMonth(get: GetFn, set: SetFn) {
     timestamp: now,
   }));
 
-  const ledger = [...entries, ...bizEntries, ...bankEntries, ...s.ledger].slice(0, 40);
+  const ledger = [...entries, ...bizEntries, ...reEntries, ...bankEntries, ...s.ledger].slice(0, 40);
   const netWorth =
     computeNetWorth(cash, s.holdings, s.assets) +
     bankEquity(bankResult.bank) +
-    businessesEquity(s.businesses);
+    businessesEquity(s.businesses) +
+    propertiesEquity(properties);
   const netWorthHistory = [
     ...s.netWorthHistory,
     { month, value: Math.round(netWorth) },
@@ -928,6 +1020,7 @@ function advanceMonth(get: GetFn, set: SetFn) {
     ledger,
     netWorthHistory,
     bank: bankResult.bank,
+    properties,
     player: { ...s.player, cash, xp: s.player.xp + (career ? XP_PER_MONTH : 0) },
   });
 

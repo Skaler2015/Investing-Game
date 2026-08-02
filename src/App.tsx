@@ -13,6 +13,7 @@ import { Leaderboard } from './screens/Leaderboard';
 import { Profile } from './screens/Profile';
 import { Bank } from './screens/Bank';
 import { BusinessScreen } from './screens/Business';
+import { RealEstate } from './screens/RealEstate';
 import { AuthGate } from './screens/AuthGate';
 import { CareerSelect } from './screens/CareerSelect';
 import type { ScreenId } from './types';
@@ -27,10 +28,11 @@ const SCREENS: Record<ScreenId, () => JSX.Element> = {
   profile: Profile,
   bank: Bank,
   business: BusinessScreen,
+  realestate: RealEstate,
 };
 
 /** Screens that take over the full frame (no bottom nav). */
-const FULLSCREEN: ScreenId[] = ['profile', 'bank', 'business'];
+const FULLSCREEN: ScreenId[] = ['profile', 'bank', 'business', 'realestate'];
 
 function Splash() {
   return (

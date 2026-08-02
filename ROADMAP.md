@@ -41,8 +41,13 @@ phase ships live on its own.
   - Level upgrades, marketing boost (+revenue for a cost), and selling
   - Business value counts toward net worth; dedicated Businesses screen +
     dashboard quick-access
-- [ ] **Phase 4 — Real estate**: buy/rent property; rent income + upkeep +
-      appreciation on the same ledger.
+- [x] **Phase 4 — Real estate**
+  - 8 properties (studio → mall unit) across residential/commercial/
+    industrial/agricultural
+  - Monthly net rent (rent − maintenance − property tax) on the ledger, plus
+    value appreciation nudged by the economy
+  - Rent/vacant toggle, sell at current value; property value counts toward
+    net worth; dedicated screen + dashboard quick-access
 - [ ] **Phase 5 — Deeper markets**: mutual funds/SIP, ETFs, bonds, REITs,
       richer stock detail (PE/EPS/dividends), candlestick charts.
 - [ ] **Phase 6 — Global economy & news engine**: inflation, rates, GDP,

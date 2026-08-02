@@ -28,6 +28,10 @@ import {
   Film,
   Hotel,
   Factory,
+  DoorOpen,
+  Trees,
+  Building,
+  Home,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -62,6 +66,10 @@ const MAP: Record<string, LucideIcon> = {
   Film,
   Hotel,
   Factory,
+  DoorOpen,
+  Trees,
+  Building,
+  Home,
 };
 
 interface Props {

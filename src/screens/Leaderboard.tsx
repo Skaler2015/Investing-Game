@@ -5,6 +5,7 @@ import { useGameStore } from '../store/gameStore';
 import { computeNetWorth } from '../engine/economy';
 import { bankEquity } from '../engine/banking';
 import { businessesEquity } from '../engine/business';
+import { propertiesEquity } from '../engine/realEstate';
 import type { LeaderboardEntry } from '../types';
 import { formatCurrency, formatPct } from '../utils/format';
 
@@ -20,8 +21,12 @@ export function Leaderboard() {
 
   const bank = useGameStore((s) => s.bank);
   const businesses = useGameStore((s) => s.businesses);
+  const properties = useGameStore((s) => s.properties);
   const netWorth =
-    computeNetWorth(player.cash, holdings, assets) + bankEquity(bank) + businessesEquity(businesses);
+    computeNetWorth(player.cash, holdings, assets) +
+    bankEquity(bank) +
+    businessesEquity(businesses) +
+    propertiesEquity(properties);
   const playerWeekly =
     netWorthDayStart > 0 ? ((netWorth - netWorthDayStart) / netWorthDayStart) * 100 : 0;
 
