@@ -42,7 +42,11 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
+          # Hostinger's FTP cert is tied to a hostname, so FTPS over the IP
+          # fails cert checks. Plain ftp (port 21) is the reliable choice here.
+          # Prefer 'ftps' only if you connect via a matching FTP hostname.
+          protocol: ftp
+          port: 21
           local-dir: ./dist/
           server-dir: ${{ vars.FTP_TARGET_DIR }}
           # Uncomment to mirror exactly (deletes remote files not in dist/).

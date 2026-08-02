@@ -41,15 +41,20 @@ In your repo: **Settings → Secrets and variables → Actions**.
 
 | Name | Value |
 | --- | --- |
-| `FTP_SERVER` | your FTP host from step 2 |
-| `FTP_USERNAME` | your FTP username |
-| `FTP_PASSWORD` | your FTP password |
+| `FTP_SERVER` | your FTP host (e.g. `82.180.164.152`) |
+| `FTP_USERNAME` | your FTP username (e.g. `u246829578.playb.in`) |
+| `FTP_PASSWORD` | your FTP password (set/reset it in hPanel → FTP Accounts) |
 
 **Variables** tab → *New repository variable*:
 
 | Name | Value |
 | --- | --- |
-| `FTP_TARGET_DIR` | the document-root path from step 1, **with a trailing slash**, e.g. `/domains/invest.playb.in/public_html/` |
+| `FTP_TARGET_DIR` | the subdomain document root, home-relative, **with a trailing slash**, e.g. `/domains/playb.in/public_html/Invest/` |
+
+> The FTP account lands in your account home (`/home/uXXXXXXXX/`), so the
+> target path is written **relative to that home** — start it at `/domains/…`,
+> not at `/home/…`. If files don't show up, log in once with FileZilla to see
+> the exact path.
 
 > 🔒 Secrets are encrypted and never shown in logs. The variable is just a path,
 > so it's safe as a plain variable.
@@ -80,8 +85,10 @@ workflow**.
 
 ## Notes & troubleshooting
 
-- **FTP vs FTPS:** the workflow uses `ftps` (secure). If Hostinger rejects it,
-  change `protocol: ftps` to `protocol: ftp` in `deploy.yml`.
+- **FTP vs FTPS:** the workflow uses plain `ftp` on port 21, because Hostinger's
+  FTPS certificate is issued for a hostname and fails when you connect via the
+  IP. If you have a matching FTP hostname and want encryption, switch
+  `protocol: ftp` to `protocol: ftps` in `deploy.yml`.
 - **Wrong folder?** If files land in the wrong place, fix `FTP_TARGET_DIR`. Test
   your FTP login first with FileZilla to confirm the exact path.
 - **Old files piling up:** deploys add/replace files but don't delete old ones.
