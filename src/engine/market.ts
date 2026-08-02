@@ -22,10 +22,18 @@ function gaussian(): number {
  * @param activeEvents events currently in effect
  * @returns a new Asset with updated price and history
  */
+export interface MacroBackdrop {
+  /** Annual drift bias added to every asset. */
+  drift: number;
+  /** Market-wide volatility multiplier. */
+  volMult: number;
+}
+
 export function stepAsset(
   asset: Asset,
   tick: number,
-  activeEvents: MarketEvent[]
+  activeEvents: MarketEvent[],
+  macro?: MacroBackdrop
 ): Asset {
   // Aggregate event drift for this asset.
   let eventDrift = 0;
@@ -36,11 +44,12 @@ export function stepAsset(
     }
   }
 
-  // Per-tick drift (annual drift spread across ~250 ticks) + event bias.
+  // Per-tick drift (annual drift spread across ~250 ticks) + event + macro bias.
   const baseDriftPerTick = asset.drift / 250;
-  const totalDrift = baseDriftPerTick + eventDrift / 250;
+  const macroDriftPerTick = (macro?.drift ?? 0) / 250;
+  const totalDrift = baseDriftPerTick + eventDrift / 250 + macroDriftPerTick;
 
-  const shock = asset.volatility * gaussian();
+  const shock = asset.volatility * (macro?.volMult ?? 1) * gaussian();
   const changePct = totalDrift + shock;
 
   let nextPrice = asset.price * (1 + changePct);
@@ -59,9 +68,10 @@ export function stepAsset(
 export function stepMarket(
   assets: Asset[],
   tick: number,
-  activeEvents: MarketEvent[]
+  activeEvents: MarketEvent[],
+  macro?: MacroBackdrop
 ): Asset[] {
-  return assets.map((a) => stepAsset(a, tick, activeEvents));
+  return assets.map((a) => stepAsset(a, tick, activeEvents, macro));
 }
 
 /** Decrement remaining duration on active events, dropping expired ones. */

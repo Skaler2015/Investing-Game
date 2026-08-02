@@ -36,7 +36,12 @@ jobs:
       #   Settings → Secrets and variables → Actions → Secrets
       #     FTP_SERVER, FTP_USERNAME, FTP_PASSWORD,
       #     FTP_TARGET_DIR  (e.g. /domains/playb.in/public_html/Invest/)
+      # Hostinger's FTP occasionally times out establishing the control
+      # socket. Give it a longer timeout and retry once on failure so a
+      # transient hiccup doesn't fail the deploy.
       - name: Deploy via FTP
+        id: deploy
+        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -44,11 +49,21 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           # Hostinger's FTP cert is tied to a hostname, so FTPS over the IP
           # fails cert checks. Plain ftp (port 21) is the reliable choice here.
-          # Prefer 'ftps' only if you connect via a matching FTP hostname.
           protocol: ftp
           port: 21
+          timeout: 60000
           local-dir: ./dist/
           server-dir: ${{ secrets.FTP_TARGET_DIR }}
-          # Uncomment to mirror exactly (deletes remote files not in dist/).
-          # Only safe if FTP_TARGET_DIR points ONLY at this app's folder.
-          # dangerous-clean-slate: true
+
+      - name: Deploy via FTP (retry)
+        if: steps.deploy.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          timeout: 60000
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_TARGET_DIR }}

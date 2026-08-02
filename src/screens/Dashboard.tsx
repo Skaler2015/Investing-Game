@@ -36,6 +36,7 @@ import { bankEquity } from '../engine/banking';
 import { businessesEquity, businessesMonthlyProfit } from '../engine/business';
 import { propertiesEquity, propertiesMonthlyIncome } from '../engine/realEstate';
 import { creditLabel } from '../data/banking';
+import { PHASES } from '../data/macro';
 import type { Asset } from '../types';
 import {
   formatCurrency,
@@ -61,8 +62,10 @@ export function Dashboard() {
   const bank = useGameStore((s) => s.bank);
   const businesses = useGameStore((s) => s.businesses);
   const properties = useGameStore((s) => s.properties);
+  const economy = useGameStore((s) => s.economy);
 
   const [selected, setSelected] = useState<Asset | null>(null);
+  const ecoCfg = PHASES[economy.phase];
 
   const stats = computePortfolioStats(holdings, assets);
   const bankNet = bankEquity(bank);
@@ -245,6 +248,18 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* Economy (macro) */}
+        <button className="glass-card bank-card" onClick={() => setScreen('news')}>
+          <div className="bank-card-ic">{ecoCfg.emoji}</div>
+          <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>Economy · {ecoCfg.label}</span>
+            <span className="faint" style={{ fontSize: 11.5 }}>
+              Inflation {economy.inflation.toFixed(1)}% · GDP {economy.gdp.toFixed(1)}% · Rate {economy.interestRate.toFixed(2)}%
+            </span>
+          </div>
+          <ChevronRight size={18} className="faint" />
+        </button>
+
         {/* Bank quick access */}
         <button className="glass-card bank-card" onClick={() => setScreen('bank')}>
           <div className="bank-card-ic">🏦</div>
@@ -312,12 +327,13 @@ export function Dashboard() {
 
         {/* Market news ticker */}
         {latestEvent && (
-          <div className="news-ticker">
+          <button className="news-ticker" style={{ width: '100%' }} onClick={() => setScreen('news')}>
             <Newspaper size={15} style={{ flexShrink: 0 }} />
-            <span className="truncate" style={{ fontSize: 12.5 }}>
+            <span className="truncate" style={{ fontSize: 12.5, textAlign: 'left', flex: 1 }}>
               {latestEvent.headline}
             </span>
-          </div>
+            <ChevronRight size={15} className="faint" />
+          </button>
         )}
 
         {/* Top movers */}

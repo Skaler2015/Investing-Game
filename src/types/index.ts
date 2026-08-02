@@ -74,6 +74,32 @@ export interface SIP {
   createdMonth: number;
 }
 
+export type EconomyPhase = 'boom' | 'expansion' | 'slowdown' | 'recession' | 'recovery';
+
+/** The macro backdrop that biases the whole market. */
+export interface EconomyState {
+  phase: EconomyPhase;
+  monthsInPhase: number;
+  /** Annual inflation %. */
+  inflation: number;
+  /** Annual GDP growth %. */
+  gdp: number;
+  /** Central-bank interest rate %. */
+  interestRate: number;
+}
+
+export type NewsCategory = 'economic' | 'business' | 'political' | 'crypto' | 'company';
+
+/** A headline in the rolling news feed. */
+export interface NewsItem {
+  id: string;
+  headline: string;
+  category: NewsCategory;
+  sentiment: number;
+  month: number;
+  timestamp: number;
+}
+
 /** A player's position in a single asset. */
 export interface Holding {
   assetId: string;
@@ -334,7 +360,8 @@ export type ScreenId =
   | 'profile'
   | 'bank'
   | 'business'
-  | 'realestate';
+  | 'realestate'
+  | 'news';
 
 /** Ephemeral toast/notification surfaced to the player. */
 export interface Toast {

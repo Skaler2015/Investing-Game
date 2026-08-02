@@ -14,6 +14,7 @@ import { Profile } from './screens/Profile';
 import { Bank } from './screens/Bank';
 import { BusinessScreen } from './screens/Business';
 import { RealEstate } from './screens/RealEstate';
+import { News } from './screens/News';
 import { AuthGate } from './screens/AuthGate';
 import { CareerSelect } from './screens/CareerSelect';
 import type { ScreenId } from './types';
@@ -29,10 +30,11 @@ const SCREENS: Record<ScreenId, () => JSX.Element> = {
   bank: Bank,
   business: BusinessScreen,
   realestate: RealEstate,
+  news: News,
 };
 
 /** Screens that take over the full frame (no bottom nav). */
-const FULLSCREEN: ScreenId[] = ['profile', 'bank', 'business', 'realestate'];
+const FULLSCREEN: ScreenId[] = ['profile', 'bank', 'business', 'realestate', 'news'];
 
 function Splash() {
   return (

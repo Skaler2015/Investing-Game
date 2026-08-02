@@ -17,6 +17,8 @@ import type {
   Business,
   Property,
   SIP,
+  EconomyState,
+  NewsItem,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
 import { getCareer } from '../data/careers';
@@ -43,6 +45,8 @@ import {
   propertiesEquity,
   realEstateEconomyFactor,
 } from '../engine/realEstate';
+import { freshEconomy, PHASES } from '../data/macro';
+import { stepEconomy, economyDrift, economyVol, categoryFor } from '../engine/macro';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
@@ -123,6 +127,10 @@ interface GameSnapshot {
   properties: Property[];
   /** Active systematic investment plans (auto-invest monthly). */
   sips: SIP[];
+  /** Macro economic backdrop. */
+  economy: EconomyState;
+  /** Rolling news feed. */
+  news: NewsItem[];
 }
 
 interface GameState extends GameSnapshot {
@@ -245,6 +253,8 @@ function freshSnapshot(name: string): GameSnapshot {
     businesses: [],
     properties: [],
     sips: [],
+    economy: freshEconomy(),
+    news: [],
   };
 }
 
@@ -277,6 +287,8 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
     businesses: snap.businesses ?? [],
     properties: snap.properties ?? [],
     sips: snap.sips ?? [],
+    economy: snap.economy ?? freshEconomy(),
+    news: snap.news ?? [],
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -419,6 +431,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       businesses: s.businesses,
       properties: s.properties,
       sips: s.sips,
+      economy: s.economy,
+      news: s.news,
     };
     void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
@@ -428,9 +442,19 @@ export const useGameStore = create<GameState>((set, get) => ({
     const nextTick = s.tick + 1;
 
     let events = ageEvents(s.events);
+    let news = s.news;
     const spawned = maybeSpawnEvent(nextTick);
     if (spawned) {
       events = [spawned, ...events].slice(0, 6);
+      const item: NewsItem = {
+        id: uid('news'),
+        headline: spawned.headline,
+        category: categoryFor(spawned),
+        sentiment: spawned.sentiment,
+        month: s.month,
+        timestamp: Date.now(),
+      };
+      news = [item, ...s.news].slice(0, 40);
       get().pushToast({
         title: 'Market News',
         message: spawned.headline,
@@ -438,7 +462,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       });
     }
 
-    const assets = stepMarket(s.assets, nextTick, events);
+    const macro = { drift: economyDrift(s.economy), volMult: economyVol(s.economy) };
+    const assets = stepMarket(s.assets, nextTick, events, macro);
 
     // Nudge rival net worths slightly so the leaderboard feels alive.
     const leaderboard = s.leaderboard.map((e) =>
@@ -447,7 +472,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         : { ...e, netWorth: Math.max(10000, e.netWorth * (1 + (Math.random() - 0.49) * 0.01)) }
     );
 
-    set({ assets, events, tick: nextTick, leaderboard });
+    set({ assets, events, news, tick: nextTick, leaderboard });
 
     // Monthly cash-flow cycle: salary, passive income, living costs, events.
     if (nextTick % TICKS_PER_MONTH === 0) {
@@ -1088,6 +1113,9 @@ function advanceMonth(get: GetFn, set: SetFn) {
   ].slice(-NET_WORTH_HISTORY_LIMIT);
   const totalNet = cash - s.player.cash;
 
+  // Advance the macro economy.
+  const eco = stepEconomy(s.economy);
+
   set({
     month,
     ledger,
@@ -1095,9 +1123,22 @@ function advanceMonth(get: GetFn, set: SetFn) {
     bank: bankResult.bank,
     properties,
     holdings,
+    economy: eco.next,
     lifetime: { ...s.lifetime, trades: s.lifetime.trades + sipTrades },
     player: { ...s.player, cash: sipCash, xp: s.player.xp + (career ? XP_PER_MONTH : 0) },
   });
+
+  if (eco.changed) {
+    const cfg = PHASES[eco.next.phase];
+    get().pushToast({
+      title: `${cfg.emoji} Economy: ${cfg.label}`,
+      message:
+        eco.next.phase === 'recession' || eco.next.phase === 'slowdown'
+          ? 'Markets face headwinds — brace for volatility'
+          : 'Tailwinds for the markets',
+      kind: eco.next.phase === 'recession' || eco.next.phase === 'slowdown' ? 'warning' : 'event',
+    });
+  }
 
   if (career) {
     const missed = bankResult.creditScoreDelta < 0;

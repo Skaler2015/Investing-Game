@@ -56,8 +56,13 @@ phase ships live on its own.
   - Richer asset detail: sector, market cap, P/E, EPS, CEO, dividend yield,
     52-week range, fund expense ratio & 1Y return
   - Candlestick chart (line/candle toggle) derived from tick history
-- [ ] **Phase 6 — Global economy & news engine**: inflation, rates, GDP,
-      recessions/booms and a generated news feed driving prices.
+- [x] **Phase 6 — Global economy & news engine**
+  - Macro economy that cycles through Boom → Expansion → Slowdown →
+    Recession → Recovery, evolving inflation / GDP / interest-rate numbers
+  - The active phase biases market-wide drift and volatility every tick
+  - Rolling, categorised news feed (economy / business / company / policy /
+    crypto) with a dedicated News & Economy screen; dashboard Economy card +
+    tappable news ticker
 - [ ] **Phase 7 — Progression at scale**: 500+ missions, tiered achievements
       (Bronze→Legendary), tax system, AI advisor, education/tutorial mode.
 - [ ] **Phase 8 — Live & social**: cloud accounts (Firebase/Supabase), real

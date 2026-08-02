@@ -786,6 +786,27 @@
   transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── News feed ─────────────────────────────────────────────────────────── */
+.news-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.news-cat {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 /* ── Fundamentals grid (asset detail) ──────────────────────────────────── */
 .fund-grid {
   display: grid;
