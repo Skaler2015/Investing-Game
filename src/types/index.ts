@@ -395,7 +395,8 @@ export type ScreenId =
   | 'realestate'
   | 'news'
   | 'advisor'
-  | 'learn';
+  | 'learn'
+  | 'settings';
 
 /** Ephemeral toast/notification surfaced to the player. */
 export interface Toast {

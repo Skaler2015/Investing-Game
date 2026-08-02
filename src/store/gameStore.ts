@@ -48,6 +48,8 @@ import {
 import { freshEconomy, PHASES } from '../data/macro';
 import { stepEconomy, economyDrift, economyVol, categoryFor } from '../engine/macro';
 import { incomeTaxMonthly, CAPITAL_GAINS_RATE } from '../data/tax';
+import { activeSeason } from '../data/seasons';
+import { playSound } from '../services/sound';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
@@ -953,8 +955,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const s = get();
     if (s.dailyRewardClaimedDay === s.day) return;
     const streak = Math.min(s.player.loginStreak, DAILY_REWARD_STREAK_CAP);
-    const coins = DAILY_REWARD_BASE_COINS * streak;
-    const xp = DAILY_REWARD_BASE_XP * streak;
+    const season = activeSeason();
+    const mult = season?.dailyMultiplier ?? 1;
+    const coins = Math.round(DAILY_REWARD_BASE_COINS * streak * mult);
+    const xp = Math.round(DAILY_REWARD_BASE_XP * streak * mult);
     set({
       dailyRewardClaimedDay: s.day,
       player: {
@@ -964,8 +968,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       },
     });
     get().pushToast({
-      title: `Day ${s.player.loginStreak} Reward!`,
-      message: `+${coins} coins · +${xp} XP`,
+      title: `Day ${s.player.loginStreak} Reward!${season ? ` ${season.emoji}` : ''}`,
+      message: `+${coins} coins · +${xp} XP${mult > 1 ? ` (${season?.name} ×${mult})` : ''}`,
       kind: 'reward',
     });
     get().save();
@@ -1022,6 +1026,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   pushToast: (t) => {
     const toast: Toast = { ...t, id: uid('toast') };
     set({ toasts: [...get().toasts, toast] });
+    // Sound cue by kind (news 'event'/'info' stay silent to avoid spam).
+    if (t.title.startsWith('🏆')) playSound('achievement');
+    else if (t.kind === 'reward') playSound('reward');
+    else if (t.kind === 'success') playSound('buy');
+    else if (t.kind === 'warning') playSound('error');
     // Auto-dismiss after 4s.
     setTimeout(() => get().dismissToast(toast.id), 4000);
   },

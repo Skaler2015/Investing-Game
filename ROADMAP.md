@@ -73,8 +73,16 @@ phase ships live on its own.
     idle cash, SIP…), surfaced on the dashboard and a dedicated screen
   - Learn & Earn: bite-sized financial-literacy lessons with reward-bearing
     quizzes
-- [ ] **Phase 8 — Live & social**: cloud accounts (Firebase/Supabase), real
-      leaderboards, seasons/events, spin-wheel & daily systems, sound, PDF
-      exports, admin/remote-config.
+- [x] **Phase 8 — Polish: sound, seasons, exports, settings**
+  - Web-Audio sound effects (buy / sell / reward / achievement) with a toggle
+  - Calendar-driven seasonal events (Independence Month, Diwali, New Year…)
+    that boost daily rewards, with a dashboard banner
+  - Exportable financial statement (printable HTML → Save-as-PDF)
+  - Settings screen (sound, theme, export, reset, simulation notice)
+  - _Cloud cross-device accounts remain the one item needing an external
+    backend (Supabase/Firebase keys) — the AuthProvider/StorageAdapter
+    abstractions are ready for it whenever you want to wire it up._
 
-Progress is tracked here; each shipped phase updates this file.
+All eight phases shipped. Future ideas: cloud sync, multiplayer, spin-wheel &
+clubs/tournaments, and a real remote-config admin panel — each slots onto the
+existing data-driven, service-abstracted architecture.

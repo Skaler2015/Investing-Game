@@ -17,6 +17,7 @@ import { RealEstate } from './screens/RealEstate';
 import { News } from './screens/News';
 import { Advisor } from './screens/Advisor';
 import { Learn } from './screens/Learn';
+import { Settings } from './screens/Settings';
 import { AuthGate } from './screens/AuthGate';
 import { CareerSelect } from './screens/CareerSelect';
 import type { ScreenId } from './types';
@@ -35,11 +36,12 @@ const SCREENS: Record<ScreenId, () => JSX.Element> = {
   news: News,
   advisor: Advisor,
   learn: Learn,
+  settings: Settings,
 };
 
 /** Screens that take over the full frame (no bottom nav). */
 const FULLSCREEN: ScreenId[] = [
-  'profile', 'bank', 'business', 'realestate', 'news', 'advisor', 'learn',
+  'profile', 'bank', 'business', 'realestate', 'news', 'advisor', 'learn', 'settings',
 ];
 
 function Splash() {

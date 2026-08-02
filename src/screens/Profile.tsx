@@ -7,13 +7,12 @@ import {
   Repeat,
   TrendingUp,
   Wallet,
-  Sun,
-  Moon,
   RotateCcw,
   Sparkles,
   ShieldCheck,
   LogOut,
   Mail,
+  Settings,
 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { resolveLevel } from '../data/levels';
@@ -43,8 +42,6 @@ export function Profile() {
   const assets = useGameStore((s) => s.assets);
   const holdings = useGameStore((s) => s.holdings);
   const lifetime = useGameStore((s) => s.lifetime);
-  const theme = useGameStore((s) => s.theme);
-  const toggleTheme = useGameStore((s) => s.toggleTheme);
   const setScreen = useGameStore((s) => s.setScreen);
   const setPlayerName = useGameStore((s) => s.setPlayerName);
   const resetGame = useGameStore((s) => s.resetGame);
@@ -80,8 +77,8 @@ export function Profile() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Profile</span>
-        <button className="icon-btn" onClick={toggleTheme} aria-label="Toggle theme">
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        <button className="icon-btn" onClick={() => setScreen('settings')} aria-label="Settings">
+          <Settings size={18} />
         </button>
       </header>
 

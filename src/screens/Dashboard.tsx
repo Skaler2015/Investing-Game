@@ -39,6 +39,7 @@ import { businessesEquity, businessesMonthlyProfit } from '../engine/business';
 import { propertiesEquity, propertiesMonthlyIncome } from '../engine/realEstate';
 import { creditLabel } from '../data/banking';
 import { PHASES } from '../data/macro';
+import { activeSeason } from '../data/seasons';
 import type { Asset } from '../types';
 import {
   formatCurrency,
@@ -69,6 +70,7 @@ export function Dashboard() {
 
   const [selected, setSelected] = useState<Asset | null>(null);
   const ecoCfg = PHASES[economy.phase];
+  const season = activeSeason();
 
   const stats = computePortfolioStats(holdings, assets);
   const bankNet = bankEquity(bank);
@@ -183,6 +185,20 @@ export function Dashboard() {
             </div>
           </div>
         </motion.div>
+
+        {/* Seasonal event banner */}
+        {season && (
+          <div
+            className="season-banner"
+            style={{ borderColor: `${season.color}66`, background: `${season.color}14` }}
+          >
+            <span style={{ fontSize: 22 }}>{season.emoji}</span>
+            <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+              <span style={{ fontWeight: 800, fontSize: 13 }}>{season.name}</span>
+              <span className="faint truncate" style={{ fontSize: 11 }}>{season.message}</span>
+            </div>
+          </div>
+        )}
 
         {/* Level + rank strip */}
         <div className="grid-2" style={{ marginTop: 12 }}>
