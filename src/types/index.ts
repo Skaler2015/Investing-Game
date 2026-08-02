@@ -154,6 +154,38 @@ export interface Player {
   loginStreak: number;
   unlockedAchievements: string[];
   earnedBadges: string[];
+  /** Selected career id (drives monthly salary/expenses). Null until chosen. */
+  careerId: string | null;
+}
+
+/** A career the player works while investing — the tycoon cash-flow engine. */
+export interface Career {
+  id: string;
+  title: string;
+  icon: string;
+  /** Virtual ₹ paid into cash each in-game month. */
+  salary: number;
+  /** Virtual ₹ of living costs deducted each in-game month. */
+  expenses: number;
+  description: string;
+  /** Reserved for future promotion / job-loss systems. */
+  volatility: number;
+}
+
+/** A single credit/debit in the monthly cash-flow ledger. */
+export interface LedgerEntry {
+  id: string;
+  month: number;
+  label: string;
+  amount: number;
+  kind: 'salary' | 'expense' | 'passive' | 'event';
+  timestamp: number;
+}
+
+/** A net-worth sample taken at each month boundary (growth chart). */
+export interface NetWorthPoint {
+  month: number;
+  value: number;
 }
 
 export interface LeaderboardEntry {

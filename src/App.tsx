@@ -12,6 +12,7 @@ import { Quests } from './screens/Quests';
 import { Leaderboard } from './screens/Leaderboard';
 import { Profile } from './screens/Profile';
 import { AuthGate } from './screens/AuthGate';
+import { CareerSelect } from './screens/CareerSelect';
 import type { ScreenId } from './types';
 
 const SCREENS: Record<ScreenId, () => JSX.Element> = {
@@ -51,6 +52,7 @@ export default function App() {
   const initialized = useGameStore((s) => s.initialized);
   const authChecked = useGameStore((s) => s.authChecked);
   const authUser = useGameStore((s) => s.authUser);
+  const careerId = useGameStore((s) => s.player.careerId);
   const theme = useGameStore((s) => s.theme);
   const currentScreen = useGameStore((s) => s.currentScreen);
   const init = useGameStore((s) => s.init);
@@ -82,6 +84,8 @@ export default function App() {
           <AuthGate />
         ) : !initialized ? (
           <Splash />
+        ) : !careerId ? (
+          <CareerSelect />
         ) : (
           <>
             <AnimatePresence mode="wait">

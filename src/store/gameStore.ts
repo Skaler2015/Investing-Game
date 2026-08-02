@@ -10,8 +10,12 @@ import type {
   Toast,
   LeaderboardEntry,
   AchievementContext,
+  LedgerEntry,
+  NetWorthPoint,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
+import { getCareer } from '../data/careers';
+import { maybeLifeEvent } from '../data/lifeEvents';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
@@ -38,6 +42,9 @@ import {
   DAILY_REWARD_BASE_XP,
   DAILY_REWARD_STREAK_CAP,
   STORAGE_SNAPSHOT_KEY,
+  TICKS_PER_MONTH,
+  NET_WORTH_HISTORY_LIMIT,
+  XP_PER_MONTH,
 } from './constants';
 
 /** Per-day activity counters that drive daily missions. */
@@ -75,6 +82,12 @@ interface GameSnapshot {
   weeklyTrades: number;
   weeklyProfit: number;
   claimedWeekly: string[];
+  /** In-game month counter (advances every TICKS_PER_MONTH). */
+  month: number;
+  /** Monthly net-worth samples for the growth chart. */
+  netWorthHistory: NetWorthPoint[];
+  /** Recent cash-flow ledger (salary / expenses / passive / events). */
+  ledger: LedgerEntry[];
 }
 
 interface GameState extends GameSnapshot {
@@ -101,6 +114,9 @@ interface GameState extends GameSnapshot {
   claimMission: (defId: string) => void;
   claimDailyReward: () => void;
   claimWeekly: (id: string) => void;
+
+  // life / career
+  setCareer: (careerId: string) => void;
 
   // ui
   setScreen: (screen: ScreenId) => void;
@@ -138,6 +154,7 @@ function freshPlayer(name: string): Player {
     loginStreak: 1,
     unlockedAchievements: [],
     earnedBadges: [],
+    careerId: null,
   };
 }
 
@@ -164,6 +181,23 @@ function freshSnapshot(name: string): GameSnapshot {
     weeklyTrades: 0,
     weeklyProfit: 0,
     claimedWeekly: [],
+    month: 0,
+    netWorthHistory: [{ month: 0, value: STARTING_CASH }],
+    ledger: [],
+  };
+}
+
+/** Backfill fields missing from snapshots saved by earlier versions. */
+function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
+  return {
+    ...snap,
+    month: snap.month ?? 0,
+    netWorthHistory:
+      snap.netWorthHistory && snap.netWorthHistory.length > 0
+        ? snap.netWorthHistory
+        : [{ month: 0, value: computeNetWorth(snap.player.cash, snap.holdings, snap.assets) }],
+    ledger: snap.ledger ?? [],
+    player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
 
@@ -204,7 +238,7 @@ type GetFn = () => GameState;
 /** Load (or create) the signed-in user's game and make it active. */
 async function loadGameForUser(user: AuthUser, set: SetFn, get: GetFn) {
   const saved = await storage.get<GameSnapshot>(snapshotKey(user.id));
-  let snap: GameSnapshot = saved ?? freshSnapshot(user.name);
+  let snap: GameSnapshot = saved ? migrateSnapshot(saved) : freshSnapshot(user.name);
   snap = { ...snap, player: { ...snap.player, name: user.name } };
   snap = applyRollovers(snap);
   set({ ...snap, authUser: user, currentScreen: 'dashboard', toasts: [], initialized: true });
@@ -294,6 +328,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       weeklyTrades: s.weeklyTrades,
       weeklyProfit: s.weeklyProfit,
       claimedWeekly: s.claimedWeekly,
+      month: s.month,
+      netWorthHistory: s.netWorthHistory,
+      ledger: s.ledger,
     };
     void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
@@ -324,11 +361,28 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({ assets, events, tick: nextTick, leaderboard });
 
+    // Monthly cash-flow cycle: salary, passive income, living costs, events.
+    if (nextTick % TICKS_PER_MONTH === 0) {
+      advanceMonth(get, set);
+    }
+
     // Re-evaluate achievements against the fresh prices.
     evaluateAchievements(get, set);
 
     // Persist roughly every ~8 ticks to limit write churn.
     if (nextTick % 8 === 0) get().save();
+  },
+
+  setCareer: (careerId) => {
+    const career = getCareer(careerId);
+    if (!career) return;
+    set({ player: { ...get().player, careerId } });
+    get().pushToast({
+      title: `Career: ${career.title}`,
+      message: `Salary ₹${career.salary.toLocaleString('en-IN')}/mo`,
+      kind: 'success',
+    });
+    get().save();
   },
 
   buy: (assetId, quantity) => {
@@ -574,6 +628,61 @@ export const useGameStore = create<GameState>((set, get) => ({
   dismissToast: (id) =>
     set({ toasts: get().toasts.filter((t) => t.id !== id) }),
 }));
+
+/**
+ * Advance one in-game month: pay salary + passive income, deduct living
+ * expenses, roll an optional life event, and record a net-worth sample. This
+ * is the tycoon cash-flow heartbeat; businesses/real-estate/taxes will layer
+ * additional entries onto the same monthly ledger.
+ */
+function advanceMonth(get: GetFn, set: SetFn) {
+  const s = get();
+  const month = s.month + 1;
+  const career = getCareer(s.player.careerId);
+  const salary = career?.salary ?? 0;
+  const expenses = career?.expenses ?? 0;
+  const passive = Math.round(computePortfolioStats(s.holdings, s.assets).dailyPassiveIncome);
+  const now = Date.now();
+
+  const entries: LedgerEntry[] = [];
+  if (salary) entries.push({ id: uid('led'), month, label: `${career?.title} salary`, amount: salary, kind: 'salary', timestamp: now });
+  if (passive > 0) entries.push({ id: uid('led'), month, label: 'Passive income', amount: passive, kind: 'passive', timestamp: now });
+  if (expenses) entries.push({ id: uid('led'), month, label: 'Living expenses', amount: -expenses, kind: 'expense', timestamp: now });
+
+  let lifeAmt = 0;
+  const life = career ? maybeLifeEvent() : null;
+  if (life && salary) {
+    lifeAmt = Math.round(salary * life.salaryFraction) * (life.kind === 'expense' ? -1 : 1);
+    entries.push({ id: uid('led'), month, label: life.label, amount: lifeAmt, kind: 'event', timestamp: now });
+  }
+
+  const net = salary + passive - expenses + lifeAmt;
+  const cash = Math.max(0, s.player.cash + net);
+  const ledger = [...entries, ...s.ledger].slice(0, 40);
+  const netWorth = computeNetWorth(cash, s.holdings, s.assets);
+  const netWorthHistory = [
+    ...s.netWorthHistory,
+    { month, value: Math.round(netWorth) },
+  ].slice(-NET_WORTH_HISTORY_LIMIT);
+
+  set({
+    month,
+    ledger,
+    netWorthHistory,
+    player: { ...s.player, cash, xp: s.player.xp + (career ? XP_PER_MONTH : 0) },
+  });
+
+  if (career) {
+    get().pushToast({
+      title: `Month ${month} · ${net >= 0 ? '+' : ''}₹${net.toLocaleString('en-IN')}`,
+      message: `Salary ₹${salary.toLocaleString('en-IN')} · Expenses ₹${expenses.toLocaleString('en-IN')}${
+        passive ? ` · Passive ₹${passive.toLocaleString('en-IN')}` : ''
+      }`,
+      kind: net >= 0 ? 'reward' : 'warning',
+    });
+  }
+  get().save();
+}
 
 /**
  * Evaluate achievement predicates, unlocking any newly-earned ones and

@@ -19,3 +19,12 @@ export const DAILY_REWARD_BASE_XP = 30;
 export const DAILY_REWARD_STREAK_CAP = 7;
 
 export const STORAGE_SNAPSHOT_KEY = 'snapshot-v1';
+
+/** Market ticks that make up one in-game month (drives salary/expenses). */
+export const TICKS_PER_MONTH = 20;
+
+/** Max net-worth history points retained for the growth chart. */
+export const NET_WORTH_HISTORY_LIMIT = 48;
+
+/** XP awarded for surviving/earning through a month. */
+export const XP_PER_MONTH = 15;

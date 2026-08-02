@@ -17,8 +17,12 @@ import {
 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { resolveLevel } from '../data/levels';
+import { getCareer } from '../data/careers';
 import { computeNetWorth } from '../engine/economy';
 import { ProgressBar } from '../components/ui/ProgressBar';
+import { Icon } from '../components/ui/Icon';
+import { Sheet } from '../components/ui/Sheet';
+import { CareerSelect } from './CareerSelect';
 import { formatCurrency, formatCurrencyFull, formatNumber } from '../utils/format';
 
 const FUTURE_FEATURES = [
@@ -47,9 +51,11 @@ export function Profile() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(player.name);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [careerOpen, setCareerOpen] = useState(false);
 
   const level = resolveLevel(player.xp);
   const netWorth = computeNetWorth(player.cash, holdings, assets);
+  const career = getCareer(player.careerId);
 
   const saveName = () => {
     setPlayerName(name);
@@ -140,6 +146,26 @@ export function Profile() {
           </div>
         </div>
 
+        {/* Career */}
+        <div className="section-title"><span>Career</span></div>
+        <button className="career-card" style={{ width: '100%' }} onClick={() => setCareerOpen(true)}>
+          <div className="career-ic">
+            <Icon name={career?.icon ?? 'Briefcase'} size={22} />
+          </div>
+          <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontWeight: 700, fontSize: 14.5 }}>
+              {career?.title ?? 'Choose a career'}
+            </span>
+            {career && (
+              <div className="row gap-8">
+                <span className="career-tag up">+{formatCurrency(career.salary)}/mo</span>
+                <span className="career-tag down">−{formatCurrency(career.expenses)}/mo</span>
+              </div>
+            )}
+          </div>
+          <Pencil size={15} className="faint" />
+        </button>
+
         {/* Badges */}
         {player.earnedBadges.length > 0 && (
           <>
@@ -209,6 +235,10 @@ export function Profile() {
           </button>
         </div>
       </div>
+
+      <Sheet open={careerOpen} onClose={() => setCareerOpen(false)} title="Change Career">
+        <CareerSelect onDone={() => setCareerOpen(false)} />
+      </Sheet>
     </>
   );
 }

@@ -744,6 +744,123 @@
   color: var(--text);
 }
 
+/* ── Premium glass cards (dashboard) ───────────────────────────────────── */
+.glass-card {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(14px);
+}
+.cashflow-card {
+  position: relative;
+  overflow: hidden;
+}
+.cashflow-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(300px 120px at 100% 0, rgba(99, 102, 241, 0.14), transparent 70%);
+  pointer-events: none;
+}
+.flow-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.gauge-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.gauge-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Career select ─────────────────────────────────────────────────────── */
+.career-hero-ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  box-shadow: var(--glow);
+  flex-shrink: 0;
+}
+.career-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.12s ease;
+}
+.career-card.active {
+  border-color: var(--brand);
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: var(--glow);
+}
+.career-ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  background: rgba(99, 102, 241, 0.14);
+  flex-shrink: 0;
+}
+.career-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.career-tag.up {
+  color: var(--up);
+  background: rgba(34, 197, 94, 0.13);
+}
+.career-tag.down {
+  color: var(--down);
+  background: rgba(239, 68, 68, 0.13);
+}
+.career-tag.net {
+  color: var(--text-dim);
+  background: var(--surface-2);
+}
+.career-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+.career-radio.on {
+  border-color: var(--brand);
+  background: radial-gradient(circle, var(--brand) 42%, transparent 46%);
+}
+.career-confirm {
+  position: sticky;
+  bottom: 12px;
+  margin-top: 18px;
+}
+
 /* ── Auth gate (login / signup) ────────────────────────────────────────── */
 .auth-wrap {
   flex: 1;

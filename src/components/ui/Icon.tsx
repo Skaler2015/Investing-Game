@@ -11,6 +11,16 @@ import {
   Crown,
   Trophy,
   Activity,
+  GraduationCap,
+  BookOpen,
+  Landmark,
+  Wheat,
+  Wrench,
+  Code2,
+  Stethoscope,
+  Scale,
+  Laptop,
+  Store,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -28,6 +38,16 @@ const MAP: Record<string, LucideIcon> = {
   Crown,
   Trophy,
   Activity,
+  GraduationCap,
+  BookOpen,
+  Landmark,
+  Wheat,
+  Wrench,
+  Code2,
+  Stethoscope,
+  Scale,
+  Laptop,
+  Store,
 };
 
 interface Props {
