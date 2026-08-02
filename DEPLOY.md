@@ -37,19 +37,14 @@ get:
 ### 3. Add the secrets & variable to GitHub
 In your repo: **Settings → Secrets and variables → Actions**.
 
-**Secrets** tab → *New repository secret* (add all three):
+**Secrets** tab → *New repository secret* (add all four):
 
 | Name | Value |
 | --- | --- |
 | `FTP_SERVER` | your FTP host (e.g. `82.180.164.152`) |
 | `FTP_USERNAME` | your FTP username (e.g. `u246829578.playb.in`) |
 | `FTP_PASSWORD` | your FTP password (set/reset it in hPanel → FTP Accounts) |
-
-**Variables** tab → *New repository variable*:
-
-| Name | Value |
-| --- | --- |
-| `FTP_TARGET_DIR` | the subdomain document root, home-relative, **with a trailing slash**, e.g. `/domains/playb.in/public_html/Invest/` |
+| `FTP_TARGET_DIR` | subdomain document root, home-relative, **with a trailing slash**, e.g. `/domains/playb.in/public_html/Invest/` |
 
 > The FTP account lands in your account home (`/home/uXXXXXXXX/`), so the
 > target path is written **relative to that home** — start it at `/domains/…`,

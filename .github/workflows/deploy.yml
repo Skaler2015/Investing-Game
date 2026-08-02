@@ -32,10 +32,10 @@ jobs:
         run: npm run build
 
       # Uploads the contents of dist/ to your subdomain's document root.
-      # Configure the three secrets and the variable in your repo settings:
-      #   Settings → Secrets and variables → Actions
-      #     Secrets:   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
-      #     Variable:  FTP_TARGET_DIR  (e.g. /domains/invest.playb.in/public_html/)
+      # Configure these repository secrets in your repo settings:
+      #   Settings → Secrets and variables → Actions → Secrets
+      #     FTP_SERVER, FTP_USERNAME, FTP_PASSWORD,
+      #     FTP_TARGET_DIR  (e.g. /domains/playb.in/public_html/Invest/)
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -48,7 +48,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: ./dist/
-          server-dir: ${{ vars.FTP_TARGET_DIR }}
+          server-dir: ${{ secrets.FTP_TARGET_DIR }}
           # Uncomment to mirror exactly (deletes remote files not in dist/).
           # Only safe if FTP_TARGET_DIR points ONLY at this app's folder.
           # dangerous-clean-slate: true
