@@ -9,6 +9,7 @@ import {
   propertiesEquity,
 } from '../engine/realEstate';
 import { formatCurrency, formatCurrencyFull, formatPct } from '../utils/format';
+import { CashChip } from '../components/layout/CashChip';
 
 type Tab = 'owned' | 'market';
 
@@ -24,7 +25,7 @@ export function RealEstate() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Real Estate</span>
-        <span style={{ width: 38 }} />
+        <CashChip />
       </header>
 
       <div className="screen-scroll">

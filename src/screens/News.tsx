@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { PHASES } from '../data/macro';
 import { relativeTime } from '../utils/format';
 import type { NewsCategory } from '../types';
+import { CashChip } from '../components/layout/CashChip';
 
 const CATEGORIES: { id: NewsCategory | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -38,7 +39,7 @@ export function News() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>News & Economy</span>
-        <span style={{ width: 38 }} />
+        <CashChip />
       </header>
 
       <div className="screen-scroll">

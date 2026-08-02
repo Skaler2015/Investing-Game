@@ -2,6 +2,7 @@ import { Sun, Moon, Coins, Flame } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { resolveLevel } from '../../data/levels';
 import { formatNumber } from '../../utils/format';
+import { CashChip } from './CashChip';
 
 interface Props {
   title: string;
@@ -36,8 +37,9 @@ export function Header({ title, subtitle }: Props) {
       </button>
 
       <div className="row gap-8">
+        <CashChip />
         {player.loginStreak > 1 && (
-          <span className="pill" style={{ background: 'rgba(245,158,11,0.14)', color: 'var(--gold)' }}>
+          <span className="pill hide-narrow" style={{ background: 'rgba(245,158,11,0.14)', color: 'var(--gold)' }}>
             <Flame size={13} /> {player.loginStreak}
           </span>
         )}

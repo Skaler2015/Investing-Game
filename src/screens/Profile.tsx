@@ -26,6 +26,7 @@ import { Icon } from '../components/ui/Icon';
 import { Sheet } from '../components/ui/Sheet';
 import { CareerSelect } from './CareerSelect';
 import { formatCurrency, formatCurrencyFull, formatNumber } from '../utils/format';
+import { CashChip } from '../components/layout/CashChip';
 
 const FUTURE_FEATURES = [
   'Multiplayer Mode',
@@ -77,9 +78,12 @@ export function Profile() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Profile</span>
-        <button className="icon-btn" onClick={() => setScreen('settings')} aria-label="Settings">
-          <Settings size={18} />
-        </button>
+        <div className="row gap-8">
+          <CashChip />
+          <button className="icon-btn" onClick={() => setScreen('settings')} aria-label="Settings">
+            <Settings size={18} />
+          </button>
+        </div>
       </header>
 
       <div className="screen-scroll">

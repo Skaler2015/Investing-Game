@@ -15,6 +15,7 @@ import { emiFor, fdAccrued, loanEligibility } from '../engine/banking';
 import { getCareer } from '../data/careers';
 import type { LoanType } from '../types';
 import { formatCurrency, formatCurrencyFull } from '../utils/format';
+import { CashChip } from '../components/layout/CashChip';
 
 type Tab = 'savings' | 'deposits' | 'loans' | 'insurance';
 
@@ -36,7 +37,7 @@ export function Bank() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Bank</span>
-        <span style={{ width: 38 }} />
+        <CashChip />
       </header>
 
       <div className="screen-scroll">

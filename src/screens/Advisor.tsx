@@ -8,6 +8,7 @@ import { portfolioRisk, diversificationScore } from '../engine/insights';
 import { buildAdvice } from '../engine/advisor';
 import { getCareer } from '../data/careers';
 import type { Advice } from '../types';
+import { CashChip } from '../components/layout/CashChip';
 
 const SEV = {
   warn: { icon: AlertTriangle, color: 'var(--down)', bg: 'rgba(239,68,68,0.12)' },
@@ -49,7 +50,7 @@ export function Advisor() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>AI Advisor</span>
-        <span style={{ width: 38 }} />
+        <CashChip />
       </header>
 
       <div className="screen-scroll">

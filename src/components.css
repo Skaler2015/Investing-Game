@@ -312,6 +312,26 @@
   color: var(--gold);
   background: rgba(245, 158, 11, 0.12);
 }
+/* Always-visible spendable-cash pill in every screen header. */
+.cash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--up);
+  background: color-mix(in srgb, var(--up) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--up) 30%, transparent);
+  white-space: nowrap;
+  transition: transform 0.12s ease;
+}
+.cash-chip:active { transform: scale(0.96); }
+/* Hide low-priority header bits on very narrow screens so cash always fits. */
+@media (max-width: 380px) {
+  .hide-narrow { display: none !important; }
+}
 .icon-btn {
   width: 38px;
   height: 38px;

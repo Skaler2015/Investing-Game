@@ -12,6 +12,7 @@ import {
 } from '../engine/business';
 import type { Business, BusinessDef } from '../types';
 import { formatCurrency, formatCurrencyFull } from '../utils/format';
+import { CashChip } from '../components/layout/CashChip';
 
 type Tab = 'owned' | 'market';
 
@@ -27,7 +28,7 @@ export function BusinessScreen() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Businesses</span>
-        <span style={{ width: 38 }} />
+        <CashChip />
       </header>
 
       <div className="screen-scroll">

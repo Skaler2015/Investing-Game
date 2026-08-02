@@ -6,6 +6,7 @@ import { Sheet } from '../components/ui/Sheet';
 import { LESSONS } from '../data/lessons';
 import { GLOSSARY } from '../data/glossary';
 import type { Lesson } from '../types';
+import { CashChip } from '../components/layout/CashChip';
 
 export function Learn() {
   const setScreen = useGameStore((s) => s.setScreen);
@@ -23,7 +24,7 @@ export function Learn() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Learn & Earn</span>
-        <span style={{ width: 38 }} />
+        <CashChip />
       </header>
 
       <div className="screen-scroll">

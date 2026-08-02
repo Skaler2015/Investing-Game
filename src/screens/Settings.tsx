@@ -12,6 +12,7 @@ import { propertiesEquity } from '../engine/realEstate';
 import { PHASES } from '../data/macro';
 import { downloadStatement } from '../utils/statement';
 import { formatQty } from '../utils/format';
+import { CashChip } from '../components/layout/CashChip';
 
 export function Settings() {
   const setScreen = useGameStore((s) => s.setScreen);
@@ -66,7 +67,7 @@ export function Settings() {
           <ArrowLeft size={18} />
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Settings</span>
-        <span style={{ width: 38 }} />
+        <CashChip />
       </header>
 
       <div className="screen-scroll">
