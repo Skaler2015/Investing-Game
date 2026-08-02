@@ -39,8 +39,14 @@ jobs:
       # Hostinger's FTP occasionally times out establishing the control
       # socket. Give it a longer timeout and retry once on failure so a
       # transient hiccup doesn't fail the deploy.
-      - name: Deploy via FTP
-        id: deploy
+      # Hostinger's FTP frequently times out establishing the control socket.
+      # We try up to three times: each attempt runs only if the previous one
+      # failed, and only the final attempt is allowed to fail the job — so one
+      # or two transient hiccups no longer mark the deploy red or block the
+      # site update. The action resumes an interrupted sync, so retries are
+      # incremental, not full re-uploads.
+      - name: Deploy via FTP (attempt 1)
+        id: deploy1
         continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -51,12 +57,14 @@ jobs:
           # fails cert checks. Plain ftp (port 21) is the reliable choice here.
           protocol: ftp
           port: 21
-          timeout: 60000
+          timeout: 120000
           local-dir: ./dist/
           server-dir: ${{ secrets.FTP_TARGET_DIR }}
 
-      - name: Deploy via FTP (retry)
-        if: steps.deploy.outcome == 'failure'
+      - name: Deploy via FTP (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -64,6 +72,19 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
           port: 21
-          timeout: 60000
+          timeout: 120000
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_TARGET_DIR }}
+
+      - name: Deploy via FTP (attempt 3)
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          timeout: 120000
           local-dir: ./dist/
           server-dir: ${{ secrets.FTP_TARGET_DIR }}
