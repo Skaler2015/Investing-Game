@@ -11,6 +11,7 @@ import { Portfolio } from './screens/Portfolio';
 import { Quests } from './screens/Quests';
 import { Leaderboard } from './screens/Leaderboard';
 import { Profile } from './screens/Profile';
+import { Bank } from './screens/Bank';
 import { AuthGate } from './screens/AuthGate';
 import { CareerSelect } from './screens/CareerSelect';
 import type { ScreenId } from './types';
@@ -23,7 +24,11 @@ const SCREENS: Record<ScreenId, () => JSX.Element> = {
   rewards: Quests,
   leaderboard: Leaderboard,
   profile: Profile,
+  bank: Bank,
 };
+
+/** Screens that take over the full frame (no bottom nav). */
+const FULLSCREEN: ScreenId[] = ['profile', 'bank'];
 
 function Splash() {
   return (
@@ -72,7 +77,7 @@ export default function App() {
   }, [theme]);
 
   const Screen = SCREENS[currentScreen] ?? Dashboard;
-  const isProfile = currentScreen === 'profile';
+  const hideNav = FULLSCREEN.includes(currentScreen);
 
   return (
     <div className="stage">
@@ -100,7 +105,7 @@ export default function App() {
                 <Screen />
               </motion.div>
             </AnimatePresence>
-            {!isProfile && <BottomNav />}
+            {!hideNav && <BottomNav />}
             <Toaster />
             <InstallPrompt />
           </>

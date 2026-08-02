@@ -32,6 +32,8 @@ import {
   economicCondition,
   portfolioRisk,
 } from '../engine/insights';
+import { bankEquity } from '../engine/banking';
+import { creditLabel } from '../data/banking';
 import type { Asset } from '../types';
 import {
   formatCurrency,
@@ -54,11 +56,14 @@ export function Dashboard() {
   const trades = useGameStore((s) => s.trades);
   const netWorthHistory = useGameStore((s) => s.netWorthHistory);
   const month = useGameStore((s) => s.month);
+  const bank = useGameStore((s) => s.bank);
 
   const [selected, setSelected] = useState<Asset | null>(null);
 
   const stats = computePortfolioStats(holdings, assets);
-  const netWorth = computeNetWorth(player.cash, holdings, assets);
+  const bankNet = bankEquity(bank);
+  const loanBalance = bank.loans.reduce((sum, l) => sum + l.balance, 0);
+  const netWorth = computeNetWorth(player.cash, holdings, assets) + bankNet;
   const dailyPnl = netWorth - netWorthDayStart;
   const dailyPnlPct = netWorthDayStart > 0 ? (dailyPnl / netWorthDayStart) * 100 : 0;
   const level = resolveLevel(player.xp);
@@ -231,6 +236,20 @@ export function Dashboard() {
             <GaugeRow label="Portfolio Risk" g={risk} />
           </div>
         </div>
+
+        {/* Bank quick access */}
+        <button className="glass-card bank-card" onClick={() => setScreen('bank')}>
+          <div className="bank-card-ic">🏦</div>
+          <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>Bank</span>
+            <span className="faint" style={{ fontSize: 11.5 }}>
+              Savings {formatCurrency(bank.savings)}
+              {loanBalance > 0 ? ` · Loans ${formatCurrency(loanBalance)}` : ''} · CIBIL{' '}
+              {bank.creditScore} ({creditLabel(bank.creditScore)})
+            </span>
+          </div>
+          <ChevronRight size={18} className="faint" />
+        </button>
 
         {/* Daily reward CTA */}
         {rewardAvailable && (

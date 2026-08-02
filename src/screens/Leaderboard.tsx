@@ -3,6 +3,7 @@ import { Crown, TrendingUp, TrendingDown } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { useGameStore } from '../store/gameStore';
 import { computeNetWorth } from '../engine/economy';
+import { bankEquity } from '../engine/banking';
 import type { LeaderboardEntry } from '../types';
 import { formatCurrency, formatPct } from '../utils/format';
 
@@ -16,7 +17,8 @@ export function Leaderboard() {
   const netWorthDayStart = useGameStore((s) => s.netWorthDayStart);
   const [board, setBoard] = useState<Board>('global');
 
-  const netWorth = computeNetWorth(player.cash, holdings, assets);
+  const bank = useGameStore((s) => s.bank);
+  const netWorth = computeNetWorth(player.cash, holdings, assets) + bankEquity(bank);
   const playerWeekly =
     netWorthDayStart > 0 ? ((netWorth - netWorthDayStart) / netWorthDayStart) * 100 : 0;
 

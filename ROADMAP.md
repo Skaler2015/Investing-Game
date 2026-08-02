@@ -27,8 +27,14 @@ phase ships live on its own.
   - Premium dashboard cards: monthly income, passive income, net/month,
     lifetime return, net-worth growth chart, Market Sentiment / Economic
     Condition / Portfolio Risk gauges
-- [ ] **Phase 2 — Banking & debt**: savings, FD/RD, loans, EMIs, credit score,
-      interest — deficits become debt instead of clamping to zero.
+- [x] **Phase 2 — Banking & debt**
+  - Savings account with monthly interest; Fixed Deposits (tenures/rates,
+    maturity payouts)
+  - Loans (personal / gold / home) with amortising EMIs auto-collected each
+    month, early repayment, eligibility by salary + credit score
+  - Credit score (CIBIL) that rises on on-time EMIs and falls on missed ones
+  - Dedicated Bank screen + dashboard quick-access; net worth now counts
+    savings + deposits − loan balances
 - [ ] **Phase 3 — Businesses**: own & run ventures (revenue, staff, upgrades)
       feeding the monthly ledger.
 - [ ] **Phase 4 — Real estate**: buy/rent property; rent income + upkeep +

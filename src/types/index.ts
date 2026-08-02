@@ -188,6 +188,45 @@ export interface NetWorthPoint {
   value: number;
 }
 
+export type LoanType = 'personal' | 'gold' | 'home';
+
+/** A locked fixed deposit earning simple interest until maturity. */
+export interface FixedDeposit {
+  id: string;
+  principal: number;
+  /** Annual interest rate (e.g. 0.07 = 7%). */
+  rate: number;
+  termMonths: number;
+  startMonth: number;
+  maturityMonth: number;
+}
+
+/** An amortising loan repaid via a fixed monthly EMI. */
+export interface Loan {
+  id: string;
+  type: LoanType;
+  /** Original borrowed amount. */
+  principal: number;
+  /** Outstanding balance. */
+  balance: number;
+  /** Annual interest rate. */
+  rate: number;
+  emi: number;
+  termMonths: number;
+  remainingMonths: number;
+  startMonth: number;
+  missedPayments: number;
+}
+
+/** The player's banking position. */
+export interface BankState {
+  savings: number;
+  deposits: FixedDeposit[];
+  loans: Loan[];
+  /** 300–900 creditworthiness score. */
+  creditScore: number;
+}
+
 export interface LeaderboardEntry {
   id: string;
   name: string;
@@ -206,7 +245,8 @@ export type ScreenId =
   | 'missions'
   | 'rewards'
   | 'leaderboard'
-  | 'profile';
+  | 'profile'
+  | 'bank';
 
 /** Ephemeral toast/notification surfaced to the player. */
 export interface Toast {

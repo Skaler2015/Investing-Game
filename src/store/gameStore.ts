@@ -12,10 +12,19 @@ import type {
   AchievementContext,
   LedgerEntry,
   NetWorthPoint,
+  BankState,
+  LoanType,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
 import { getCareer } from '../data/careers';
 import { maybeLifeEvent } from '../data/lifeEvents';
+import { CREDIT, FD_PRODUCTS, loanProduct } from '../data/banking';
+import {
+  emiFor,
+  bankEquity,
+  loanEligibility,
+  processBankMonth,
+} from '../engine/banking';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
@@ -88,6 +97,8 @@ interface GameSnapshot {
   netWorthHistory: NetWorthPoint[];
   /** Recent cash-flow ledger (salary / expenses / passive / events). */
   ledger: LedgerEntry[];
+  /** Banking position: savings, deposits, loans, credit score. */
+  bank: BankState;
 }
 
 interface GameState extends GameSnapshot {
@@ -117,6 +128,13 @@ interface GameState extends GameSnapshot {
 
   // life / career
   setCareer: (careerId: string) => void;
+
+  // banking
+  depositSavings: (amount: number) => { ok: boolean; message: string };
+  withdrawSavings: (amount: number) => { ok: boolean; message: string };
+  openFD: (amount: number, termMonths: number) => { ok: boolean; message: string };
+  takeLoan: (type: LoanType, amount: number, termMonths: number) => { ok: boolean; message: string };
+  repayLoan: (loanId: string) => { ok: boolean; message: string };
 
   // ui
   setScreen: (screen: ScreenId) => void;
@@ -184,7 +202,12 @@ function freshSnapshot(name: string): GameSnapshot {
     month: 0,
     netWorthHistory: [{ month: 0, value: STARTING_CASH }],
     ledger: [],
+    bank: freshBank(),
   };
+}
+
+function freshBank(): BankState {
+  return { savings: 0, deposits: [], loans: [], creditScore: CREDIT.start };
 }
 
 /** Backfill fields missing from snapshots saved by earlier versions. */
@@ -197,6 +220,7 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
         ? snap.netWorthHistory
         : [{ month: 0, value: computeNetWorth(snap.player.cash, snap.holdings, snap.assets) }],
     ledger: snap.ledger ?? [],
+    bank: snap.bank ?? freshBank(),
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -247,7 +271,7 @@ async function loadGameForUser(user: AuthUser, set: SetFn, get: GetFn) {
 
 /** Build the achievement context from current state. */
 function achievementContext(s: GameState): AchievementContext {
-  const netWorth = computeNetWorth(s.player.cash, s.holdings, s.assets);
+  const netWorth = computeNetWorth(s.player.cash, s.holdings, s.assets) + bankEquity(s.bank);
   const classes = new Set(
     s.holdings
       .filter((h) => h.quantity > 0)
@@ -331,6 +355,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       month: s.month,
       netWorthHistory: s.netWorthHistory,
       ledger: s.ledger,
+      bank: s.bank,
     };
     void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
@@ -383,6 +408,115 @@ export const useGameStore = create<GameState>((set, get) => ({
       kind: 'success',
     });
     get().save();
+  },
+
+  depositSavings: (amount) => {
+    const s = get();
+    amount = Math.floor(amount);
+    if (amount <= 0) return { ok: false, message: 'Enter an amount' };
+    if (amount > s.player.cash) return { ok: false, message: 'Not enough cash' };
+    set({
+      player: { ...s.player, cash: s.player.cash - amount },
+      bank: { ...s.bank, savings: s.bank.savings + amount },
+    });
+    get().save();
+    return { ok: true, message: 'Deposited to savings' };
+  },
+
+  withdrawSavings: (amount) => {
+    const s = get();
+    amount = Math.floor(amount);
+    if (amount <= 0) return { ok: false, message: 'Enter an amount' };
+    if (amount > s.bank.savings) return { ok: false, message: 'Not enough in savings' };
+    set({
+      player: { ...s.player, cash: s.player.cash + amount },
+      bank: { ...s.bank, savings: s.bank.savings - amount },
+    });
+    get().save();
+    return { ok: true, message: 'Withdrawn to cash' };
+  },
+
+  openFD: (amount, termMonths) => {
+    const s = get();
+    amount = Math.floor(amount);
+    const product = FD_PRODUCTS.find((p) => p.termMonths === termMonths);
+    if (!product) return { ok: false, message: 'Invalid tenure' };
+    if (amount < 1000) return { ok: false, message: 'Minimum FD is ₹1,000' };
+    if (amount > s.player.cash) return { ok: false, message: 'Not enough cash' };
+    const fd = {
+      id: uid('fd'),
+      principal: amount,
+      rate: product.rate,
+      termMonths,
+      startMonth: s.month,
+      maturityMonth: s.month + termMonths,
+    };
+    set({
+      player: { ...s.player, cash: s.player.cash - amount },
+      bank: { ...s.bank, deposits: [...s.bank.deposits, fd] },
+    });
+    get().pushToast({
+      title: 'Fixed Deposit opened',
+      message: `₹${amount.toLocaleString('en-IN')} @ ${(product.rate * 100).toFixed(1)}% for ${product.label}`,
+      kind: 'success',
+    });
+    get().save();
+    return { ok: true, message: 'FD created' };
+  },
+
+  takeLoan: (type, amount, termMonths) => {
+    const s = get();
+    amount = Math.floor(amount);
+    const product = loanProduct(type);
+    const salary = getCareer(s.player.careerId)?.salary ?? 0;
+    const elig = loanEligibility(type, salary, s.bank.creditScore, s.bank);
+    if (!elig.eligible) return { ok: false, message: elig.reason ?? 'Not eligible' };
+    if (amount < 1000) return { ok: false, message: 'Minimum loan is ₹1,000' };
+    if (amount > elig.maxAmount) {
+      return { ok: false, message: `Max eligible: ₹${elig.maxAmount.toLocaleString('en-IN')}` };
+    }
+    const emi = emiFor(amount, product.rate, termMonths);
+    const loan = {
+      id: uid('loan'),
+      type,
+      principal: amount,
+      balance: amount,
+      rate: product.rate,
+      emi,
+      termMonths,
+      remainingMonths: termMonths,
+      startMonth: s.month,
+      missedPayments: 0,
+    };
+    set({
+      player: { ...s.player, cash: s.player.cash + amount },
+      bank: { ...s.bank, loans: [...s.bank.loans, loan] },
+    });
+    get().pushToast({
+      title: `${product.title} approved`,
+      message: `+₹${amount.toLocaleString('en-IN')} · EMI ₹${emi.toLocaleString('en-IN')}/mo`,
+      kind: 'reward',
+    });
+    get().save();
+    return { ok: true, message: 'Loan disbursed' };
+  },
+
+  repayLoan: (loanId) => {
+    const s = get();
+    const loan = s.bank.loans.find((l) => l.id === loanId);
+    if (!loan) return { ok: false, message: 'Loan not found' };
+    if (loan.balance > s.player.cash) return { ok: false, message: 'Not enough cash to close' };
+    set({
+      player: { ...s.player, cash: s.player.cash - loan.balance },
+      bank: {
+        ...s.bank,
+        loans: s.bank.loans.filter((l) => l.id !== loanId),
+        creditScore: Math.min(CREDIT.max, s.bank.creditScore + CREDIT.goodEventBonus),
+      },
+    });
+    get().pushToast({ title: 'Loan closed early 🎉', message: `${loan.type} fully repaid`, kind: 'success' });
+    get().save();
+    return { ok: true, message: 'Loan repaid' };
   },
 
   buy: (assetId, quantity) => {
@@ -656,29 +790,49 @@ function advanceMonth(get: GetFn, set: SetFn) {
     entries.push({ id: uid('led'), month, label: life.label, amount: lifeAmt, kind: 'event', timestamp: now });
   }
 
-  const net = salary + passive - expenses + lifeAmt;
-  const cash = Math.max(0, s.player.cash + net);
-  const ledger = [...entries, ...s.ledger].slice(0, 40);
-  const netWorth = computeNetWorth(cash, s.holdings, s.assets);
+  const incomeNet = salary + passive - expenses + lifeAmt;
+  const cashAfterLife = Math.max(0, s.player.cash + incomeNet);
+
+  // Banking: savings interest, FD maturities, loan EMIs.
+  const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+  const bankResult = processBankMonth(s.bank, month, cashAfterLife, clamp);
+  const cash = Math.max(0, cashAfterLife + bankResult.cashDelta);
+
+  const bankEntries: LedgerEntry[] = bankResult.ledger.map((e) => ({
+    id: uid('led'),
+    month,
+    label: e.label,
+    amount: e.amount,
+    kind: e.kind,
+    timestamp: now,
+  }));
+
+  const ledger = [...entries, ...bankEntries, ...s.ledger].slice(0, 40);
+  const netWorth = computeNetWorth(cash, s.holdings, s.assets) + bankEquity(bankResult.bank);
   const netWorthHistory = [
     ...s.netWorthHistory,
     { month, value: Math.round(netWorth) },
   ].slice(-NET_WORTH_HISTORY_LIMIT);
+  const totalNet = cash - s.player.cash;
 
   set({
     month,
     ledger,
     netWorthHistory,
+    bank: bankResult.bank,
     player: { ...s.player, cash, xp: s.player.xp + (career ? XP_PER_MONTH : 0) },
   });
 
   if (career) {
+    const missed = bankResult.creditScoreDelta < 0;
     get().pushToast({
-      title: `Month ${month} · ${net >= 0 ? '+' : ''}₹${net.toLocaleString('en-IN')}`,
-      message: `Salary ₹${salary.toLocaleString('en-IN')} · Expenses ₹${expenses.toLocaleString('en-IN')}${
-        passive ? ` · Passive ₹${passive.toLocaleString('en-IN')}` : ''
-      }`,
-      kind: net >= 0 ? 'reward' : 'warning',
+      title: `Month ${month} · ${totalNet >= 0 ? '+' : ''}₹${totalNet.toLocaleString('en-IN')}`,
+      message: missed
+        ? '⚠️ Missed a loan EMI — credit score dropped'
+        : `Salary ₹${salary.toLocaleString('en-IN')} · Expenses ₹${expenses.toLocaleString('en-IN')}${
+            passive ? ` · Passive ₹${passive.toLocaleString('en-IN')}` : ''
+          }`,
+      kind: missed ? 'warning' : totalNet >= 0 ? 'reward' : 'warning',
     });
   }
   get().save();
