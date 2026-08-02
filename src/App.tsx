@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useGameStore } from './store/gameStore';
 import { useMarketTick } from './hooks/useMarketTick';
 import { BottomNav } from './components/layout/BottomNav';
+import { Sidebar } from './components/layout/Sidebar';
 import { Toaster } from './components/ui/Toaster';
 import { InstallPrompt } from './components/pwa/InstallPrompt';
 import { Dashboard } from './screens/Dashboard';
@@ -92,10 +93,13 @@ export default function App() {
 
   const Screen = SCREENS[currentScreen] ?? Dashboard;
   const hideNav = FULLSCREEN.includes(currentScreen);
+  // Once signed in and set up, switch the desktop layout from the marketing
+  // "phone in a frame" to a full-width web app with a sidebar.
+  const inApp = authChecked && !!authUser && initialized && !!careerId;
 
   return (
-    <div className="stage">
-      <DesktopHero />
+    <div className={`stage ${inApp ? 'mode-app' : 'mode-gate'}`}>
+      {inApp ? <Sidebar /> : <DesktopHero />}
       <div className="app-shell">
         {!authChecked ? (
           <Splash />

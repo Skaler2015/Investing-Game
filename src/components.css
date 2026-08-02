@@ -25,7 +25,8 @@
 }
 
 @media (min-width: 900px) {
-  .stage {
+  /* Marketing "phone in a frame" — only before sign-in (gate mode). */
+  .stage.mode-gate {
     gap: 60px;
     padding: 32px;
     background:
@@ -33,15 +34,48 @@
       radial-gradient(760px 520px at 92% 96%, rgba(34, 211, 238, 0.12), transparent 55%),
       linear-gradient(180deg, var(--bg), var(--bg-2));
   }
-
-  /* Turn the full-bleed shell into a floating phone frame. */
-  .app-shell {
+  .mode-gate .app-shell {
     height: min(880px, 92dvh);
     border-radius: 36px;
     border: 1px solid var(--border);
     box-shadow: var(--shadow-lg);
     overflow: hidden;
     flex-shrink: 0;
+  }
+
+  /* ── Full-width web-app layout after sign-in (sidebar + wide content) ── */
+  .stage.mode-app {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+    background: linear-gradient(180deg, var(--bg), var(--bg-2));
+  }
+  .stage.mode-app .sidebar {
+    display: flex;
+  }
+  .stage.mode-app .app-shell {
+    flex: 1;
+    height: 100dvh;
+    max-width: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  .stage.mode-app .bottom-nav {
+    display: none;
+  }
+  .stage.mode-app .screen-motion {
+    align-items: center;
+  }
+  .stage.mode-app .app-header,
+  .stage.mode-app .screen-scroll {
+    width: 100%;
+    max-width: 900px;
+  }
+  .stage.mode-app .screen-scroll {
+    padding-bottom: 40px;
   }
 
   .desktop-hero {
@@ -118,11 +152,92 @@
   }
 }
 
-/* On very wide screens keep it comfortably centered, not stretched. */
+/* On very wide screens keep the login layout comfortably centered. */
 @media (min-width: 1300px) {
-  .stage {
+  .stage.mode-gate {
     gap: 96px;
   }
+}
+
+/* ── Desktop sidebar (hidden on mobile) ────────────────────────────────── */
+.sidebar {
+  display: none;
+  width: 248px;
+  flex-shrink: 0;
+  height: 100dvh;
+  flex-direction: column;
+  padding: 18px 14px;
+  background: var(--surface-2);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+.side-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 16px;
+}
+.side-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  box-shadow: var(--glow);
+  flex-shrink: 0;
+}
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  flex: 1;
+}
+.side-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.side-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.side-item.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  box-shadow: var(--shadow-sm);
+}
+.side-sep {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-faint);
+  padding: 14px 12px 6px;
+}
+.side-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.side-sim {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  padding: 10px 12px 2px;
+  line-height: 1.4;
 }
 
 /* ── Splash ────────────────────────────────────────────────────────────── */
