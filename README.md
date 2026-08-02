@@ -37,6 +37,8 @@ by riding a live, event-driven market.
 - **Framer Motion** — smooth animations and transitions
 - **lucide-react** — clean, consistent iconography
 - **Custom SVG charts** — sparklines, price chart and donut (no heavy chart deps)
+- **PWA (vite-plugin-pwa + Workbox)** — installable, offline-capable, runs
+  fullscreen as a standalone mobile app
 
 ```
 src/
@@ -90,6 +92,26 @@ npm run lint
 
 Open the app on a phone-sized viewport (or your browser's device toolbar) for
 the intended mobile experience. Progress auto-saves to your device.
+
+---
+
+## 📱 Install as a mobile app (PWA)
+
+Invest Master is a **Progressive Web App**, so it installs to your phone's home
+screen and runs fullscreen like a native app — no app store required. It also
+works offline thanks to a service worker that caches the app shell.
+
+> The service worker only activates on a production build served over HTTPS (or
+> `localhost`). Use `npm run build && npm run preview`, or deploy the `dist/`
+> folder to any static host (Netlify, Vercel, GitHub Pages, …).
+
+**Android / Chrome:** open the site → tap the in-app **Install** banner, or use
+the browser menu → **Install app / Add to Home screen**.
+
+**iPhone / iPad (Safari):** tap the **Share** button → **Add to Home Screen**.
+
+Once installed, launch it from the home-screen icon for a fullscreen, standalone
+experience with its own splash and app icon.
 
 ---
 

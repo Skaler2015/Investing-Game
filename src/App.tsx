@@ -4,6 +4,7 @@ import { useGameStore } from './store/gameStore';
 import { useMarketTick } from './hooks/useMarketTick';
 import { BottomNav } from './components/layout/BottomNav';
 import { Toaster } from './components/ui/Toaster';
+import { InstallPrompt } from './components/pwa/InstallPrompt';
 import { Dashboard } from './screens/Dashboard';
 import { Market } from './screens/Market';
 import { Portfolio } from './screens/Portfolio';
@@ -88,6 +89,7 @@ export default function App() {
           </AnimatePresence>
           {!isProfile && <BottomNav />}
           <Toaster />
+          <InstallPrompt />
         </>
       )}
     </div>
