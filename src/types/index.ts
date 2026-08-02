@@ -11,7 +11,11 @@ export type AssetClass =
   | 'gold'
   | 'realestate'
   | 'fd'
-  | 'startup';
+  | 'startup'
+  | 'etf'
+  | 'mutualfund'
+  | 'bond'
+  | 'reit';
 
 export type RiskLevel = 'Low' | 'Medium' | 'High' | 'Very High';
 
@@ -44,6 +48,30 @@ export interface Asset {
   /** Minimum quantity that can be traded (e.g. fractional crypto vs whole FD). */
   minQty: number;
   description: string;
+
+  // Optional fundamentals (shown on the asset detail sheet).
+  sector?: string;
+  /** Market capitalisation in ₹. */
+  marketCap?: number;
+  /** Price-to-earnings ratio. */
+  pe?: number;
+  /** Earnings per share. */
+  eps?: number;
+  ceo?: string;
+  /** Annual dividend yield for display (e.g. 0.012 = 1.2%). */
+  divYieldAnnual?: number;
+  /** Fund expense ratio (e.g. 0.005 = 0.5%). */
+  expenseRatio?: number;
+  /** Trailing 1-year return for funds/ETFs. */
+  return1y?: number;
+}
+
+/** A recurring monthly investment (Systematic Investment Plan). */
+export interface SIP {
+  id: string;
+  assetId: string;
+  amount: number;
+  createdMonth: number;
 }
 
 /** A player's position in a single asset. */

@@ -786,6 +786,23 @@
   transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Fundamentals grid (asset detail) ──────────────────────────────────── */
+.fund-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.fund-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
 /* ── Bank ──────────────────────────────────────────────────────────────── */
 .bank-card {
   width: 100%;

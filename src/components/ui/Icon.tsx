@@ -32,6 +32,9 @@ import {
   Trees,
   Building,
   Home,
+  Layers,
+  PieChart,
+  Scroll,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -70,6 +73,9 @@ const MAP: Record<string, LucideIcon> = {
   Trees,
   Building,
   Home,
+  Layers,
+  PieChart,
+  Scroll,
 };
 
 interface Props {

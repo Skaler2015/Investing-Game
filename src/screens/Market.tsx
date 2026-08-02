@@ -13,7 +13,11 @@ type Filter = 'all' | AssetClass;
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'stock', label: 'Stocks' },
+  { id: 'mutualfund', label: 'Mutual Funds' },
+  { id: 'etf', label: 'ETFs' },
   { id: 'crypto', label: 'Crypto' },
+  { id: 'bond', label: 'Bonds' },
+  { id: 'reit', label: 'REITs' },
   { id: 'gold', label: 'Gold' },
   { id: 'realestate', label: 'Real Estate' },
   { id: 'fd', label: 'Fixed Dep.' },

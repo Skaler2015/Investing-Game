@@ -1,18 +1,7 @@
-import type { Asset, AssetClass, RiskLevel } from '../types';
+import type { Asset, AssetClass } from '../types';
 
-interface AssetSeed {
-  id: string;
-  name: string;
-  symbol: string;
-  assetClass: AssetClass;
-  risk: RiskLevel;
-  drift: number;
-  volatility: number;
-  dividendYield: number;
-  price: number;
-  minQty: number;
-  description: string;
-}
+/** A seed is a full Asset minus the runtime price history. */
+type AssetSeed = Omit<Asset, 'history'>;
 
 /**
  * Seed definitions for every tradable asset. Prices here are the starting
@@ -32,6 +21,12 @@ export const ASSET_SEEDS: AssetSeed[] = [
     price: 3200,
     minQty: 1,
     description: 'Blue-chip IT services giant. Steady grower with modest dividends.',
+    sector: 'Information Technology',
+    marketCap: 12500000000000,
+    pe: 28.4,
+    eps: 112.7,
+    ceo: 'R. Menon',
+    divYieldAnnual: 0.011,
   },
   {
     id: 'stk-bank',
@@ -45,6 +40,12 @@ export const ASSET_SEEDS: AssetSeed[] = [
     price: 1450,
     minQty: 1,
     description: 'Large private-sector bank. Sensitive to interest-rate policy.',
+    sector: 'Banking & Finance',
+    marketCap: 8900000000000,
+    pe: 19.2,
+    eps: 75.5,
+    ceo: 'S. Kapoor',
+    divYieldAnnual: 0.008,
   },
   {
     id: 'stk-auto',
@@ -58,6 +59,12 @@ export const ASSET_SEEDS: AssetSeed[] = [
     price: 820,
     minQty: 1,
     description: 'Electric-vehicle maker. High growth, high swings.',
+    sector: 'Automobile',
+    marketCap: 3100000000000,
+    pe: 44.8,
+    eps: 18.3,
+    ceo: 'A. Deshmukh',
+    divYieldAnnual: 0.004,
   },
   // ── Cryptocurrency ────────────────────────────────────────────────────
   {
@@ -168,6 +175,68 @@ export const ASSET_SEEDS: AssetSeed[] = [
     minQty: 10,
     description: 'Space-launch venture. Moonshot risk and moonshot reward.',
   },
+
+  // ── ETFs ──────────────────────────────────────────────────────────────
+  {
+    id: 'etf-nifty', name: 'Nifty 50 ETF', symbol: 'NIFTYBEES', assetClass: 'etf',
+    risk: 'Medium', drift: 0.11, volatility: 0.012, dividendYield: 0.0004, price: 245, minQty: 1,
+    description: 'Tracks the Nifty 50 index. Instant diversification, low cost.',
+    expenseRatio: 0.0005, return1y: 0.142,
+  },
+  {
+    id: 'etf-gold', name: 'Gold ETF', symbol: 'GOLDBEES', assetClass: 'etf',
+    risk: 'Low', drift: 0.06, volatility: 0.008, dividendYield: 0, price: 68, minQty: 1,
+    description: 'Gold exposure without storing metal. A portfolio hedge.',
+    expenseRatio: 0.005, return1y: 0.089,
+  },
+
+  // ── Mutual Funds ──────────────────────────────────────────────────────
+  {
+    id: 'mf-bluechip', name: 'Bluechip Equity Fund', symbol: 'BLUECHIP', assetClass: 'mutualfund',
+    risk: 'Medium', drift: 0.13, volatility: 0.011, dividendYield: 0, price: 320, minQty: 0.1,
+    description: 'Actively managed large-cap fund. Great for SIPs.',
+    expenseRatio: 0.011, return1y: 0.163,
+  },
+  {
+    id: 'mf-smallcap', name: 'Small Cap Fund', symbol: 'SMALLCAP', assetClass: 'mutualfund',
+    risk: 'High', drift: 0.19, volatility: 0.022, dividendYield: 0, price: 92, minQty: 0.1,
+    description: 'High-growth small companies. Volatile — ideal for long SIPs.',
+    expenseRatio: 0.015, return1y: 0.241,
+  },
+  {
+    id: 'mf-debt', name: 'Debt Fund', symbol: 'DEBTFUND', assetClass: 'mutualfund',
+    risk: 'Low', drift: 0.07, volatility: 0.003, dividendYield: 0, price: 44, minQty: 0.1,
+    description: 'Bonds & money-market instruments. Stable, low-risk returns.',
+    expenseRatio: 0.006, return1y: 0.071,
+  },
+
+  // ── Bonds ─────────────────────────────────────────────────────────────
+  {
+    id: 'bond-govt', name: 'Govt Bond 10Y', symbol: 'GSEC10', assetClass: 'bond',
+    risk: 'Low', drift: 0.015, volatility: 0.002, dividendYield: 0.006, price: 1000, minQty: 1,
+    description: 'Sovereign-backed. Pays a steady coupon; near-zero default risk.',
+    divYieldAnnual: 0.072,
+  },
+  {
+    id: 'bond-corp', name: 'Corporate Bond', symbol: 'CORPBND', assetClass: 'bond',
+    risk: 'Medium', drift: 0.02, volatility: 0.004, dividendYield: 0.0072, price: 1000, minQty: 1,
+    description: 'Higher coupon than govt bonds, with some credit risk.',
+    divYieldAnnual: 0.086,
+  },
+
+  // ── REITs ─────────────────────────────────────────────────────────────
+  {
+    id: 'reit-office', name: 'Office REIT', symbol: 'OFCREIT', assetClass: 'reit',
+    risk: 'Medium', drift: 0.08, volatility: 0.009, dividendYield: 0.005, price: 350, minQty: 1,
+    description: 'Owns premium office parks. Passes rent to you as dividends.',
+    divYieldAnnual: 0.061,
+  },
+  {
+    id: 'reit-retail', name: 'Retail REIT', symbol: 'RTLREIT', assetClass: 'reit',
+    risk: 'Medium', drift: 0.085, volatility: 0.011, dividendYield: 0.0058, price: 415, minQty: 1,
+    description: 'Malls and high-street retail. Higher yield, footfall-driven.',
+    divYieldAnnual: 0.069,
+  },
 ];
 
 /** Build fresh, fully-initialised Asset objects (with seeded history). */
@@ -188,4 +257,8 @@ export const ASSET_CLASS_META: Record<
   realestate: { label: 'Real Estate', icon: 'Building2', color: '#10b981' },
   fd: { label: 'Fixed Deposit', icon: 'PiggyBank', color: '#8b5cf6' },
   startup: { label: 'Startups', icon: 'Rocket', color: '#ec4899' },
+  etf: { label: 'ETFs', icon: 'Layers', color: '#06b6d4' },
+  mutualfund: { label: 'Mutual Funds', icon: 'PieChart', color: '#14b8a6' },
+  bond: { label: 'Bonds', icon: 'Scroll', color: '#a3a3a3' },
+  reit: { label: 'REITs', icon: 'Building', color: '#22c55e' },
 };

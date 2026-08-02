@@ -48,8 +48,14 @@ phase ships live on its own.
     value appreciation nudged by the economy
   - Rent/vacant toggle, sell at current value; property value counts toward
     net worth; dedicated screen + dashboard quick-access
-- [ ] **Phase 5 — Deeper markets**: mutual funds/SIP, ETFs, bonds, REITs,
-      richer stock detail (PE/EPS/dividends), candlestick charts.
+- [x] **Phase 5 — Deeper markets**
+  - New asset classes: Mutual Funds, ETFs, Bonds, REITs (10 new instruments)
+    trading through the existing market/portfolio engine
+  - SIP (systematic investment plan): set a monthly amount on any asset and it
+    auto-invests each month; managed from the asset sheet & Portfolio
+  - Richer asset detail: sector, market cap, P/E, EPS, CEO, dividend yield,
+    52-week range, fund expense ratio & 1Y return
+  - Candlestick chart (line/candle toggle) derived from tick history
 - [ ] **Phase 6 — Global economy & news engine**: inflation, rates, GDP,
       recessions/booms and a generated news feed driving prices.
 - [ ] **Phase 7 — Progression at scale**: 500+ missions, tiered achievements

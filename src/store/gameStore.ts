@@ -16,6 +16,7 @@ import type {
   LoanType,
   Business,
   Property,
+  SIP,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
 import { getCareer } from '../data/careers';
@@ -120,6 +121,8 @@ interface GameSnapshot {
   businesses: Business[];
   /** Owned real-estate properties. */
   properties: Property[];
+  /** Active systematic investment plans (auto-invest monthly). */
+  sips: SIP[];
 }
 
 interface GameState extends GameSnapshot {
@@ -167,6 +170,10 @@ interface GameState extends GameSnapshot {
   buyProperty: (defId: string) => { ok: boolean; message: string };
   togglePropertyRent: (id: string) => void;
   sellProperty: (id: string) => { ok: boolean; message: string };
+
+  // SIP (systematic investment plan)
+  addSIP: (assetId: string, amount: number) => { ok: boolean; message: string };
+  cancelSIP: (id: string) => void;
 
   // ui
   setScreen: (screen: ScreenId) => void;
@@ -237,7 +244,19 @@ function freshSnapshot(name: string): GameSnapshot {
     bank: freshBank(),
     businesses: [],
     properties: [],
+    sips: [],
   };
+}
+
+/** Merge a buy into the holdings list, updating weighted-average cost. */
+function mergeHolding(holdings: Holding[], assetId: string, qty: number, price: number): Holding[] {
+  const existing = holdings.find((h) => h.assetId === assetId);
+  if (existing) {
+    const totalQty = existing.quantity + qty;
+    const avgCost = (existing.avgCost * existing.quantity + price * qty) / totalQty;
+    return holdings.map((h) => (h.assetId === assetId ? { ...h, quantity: totalQty, avgCost } : h));
+  }
+  return [...holdings, { assetId, quantity: qty, avgCost: price }];
 }
 
 function freshBank(): BankState {
@@ -257,6 +276,7 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
     bank: snap.bank ?? freshBank(),
     businesses: snap.businesses ?? [],
     properties: snap.properties ?? [],
+    sips: snap.sips ?? [],
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -398,6 +418,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       bank: s.bank,
       businesses: s.businesses,
       properties: s.properties,
+      sips: s.sips,
     };
     void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
@@ -673,6 +694,32 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
     get().save();
     return { ok: true, message: 'Property sold' };
+  },
+
+  addSIP: (assetId, amount) => {
+    const s = get();
+    amount = Math.floor(amount);
+    const asset = findAsset(s.assets, assetId);
+    if (!asset) return { ok: false, message: 'Asset not found' };
+    if (amount < 500) return { ok: false, message: 'Minimum SIP is ₹500/month' };
+    const existing = s.sips.find((p) => p.assetId === assetId);
+    if (existing) {
+      set({ sips: s.sips.map((p) => (p.assetId === assetId ? { ...p, amount } : p)) });
+    } else {
+      set({ sips: [...s.sips, { id: uid('sip'), assetId, amount, createdMonth: s.month }] });
+    }
+    get().pushToast({
+      title: 'SIP set up 📅',
+      message: `₹${amount.toLocaleString('en-IN')}/month into ${asset.symbol}`,
+      kind: 'success',
+    });
+    get().save();
+    return { ok: true, message: 'SIP active' };
+  },
+
+  cancelSIP: (id) => {
+    set({ sips: get().sips.filter((p) => p.id !== id) });
+    get().save();
   },
 
   buy: (assetId, quantity) => {
@@ -994,6 +1041,32 @@ function advanceMonth(get: GetFn, set: SetFn) {
 
   const cash = Math.max(0, cashAfterLife + bankResult.cashDelta + bizProfit + reNet);
 
+  // SIPs: auto-invest a fixed amount into each plan's asset (if cash allows).
+  let sipCash = cash;
+  let holdings = s.holdings;
+  const sipEntries: LedgerEntry[] = [];
+  let sipTrades = 0;
+  for (const sip of s.sips) {
+    const asset = findAsset(s.assets, sip.assetId);
+    if (!asset) continue;
+    const rawQty = sip.amount / asset.price;
+    const qty = parseFloat((Math.floor(rawQty / asset.minQty) * asset.minQty).toFixed(4));
+    if (qty < asset.minQty) continue;
+    const cost = Math.round(asset.price * qty);
+    if (cost > sipCash) continue;
+    sipCash -= cost;
+    holdings = mergeHolding(holdings, sip.assetId, qty, asset.price);
+    sipTrades += 1;
+    sipEntries.push({
+      id: uid('led'),
+      month,
+      label: `SIP · ${asset.symbol}`,
+      amount: -cost,
+      kind: 'expense',
+      timestamp: now,
+    });
+  }
+
   const bankEntries: LedgerEntry[] = bankResult.ledger.map((e) => ({
     id: uid('led'),
     month,
@@ -1003,9 +1076,9 @@ function advanceMonth(get: GetFn, set: SetFn) {
     timestamp: now,
   }));
 
-  const ledger = [...entries, ...bizEntries, ...reEntries, ...bankEntries, ...s.ledger].slice(0, 40);
+  const ledger = [...entries, ...bizEntries, ...reEntries, ...bankEntries, ...sipEntries, ...s.ledger].slice(0, 40);
   const netWorth =
-    computeNetWorth(cash, s.holdings, s.assets) +
+    computeNetWorth(sipCash, holdings, s.assets) +
     bankEquity(bankResult.bank) +
     businessesEquity(s.businesses) +
     propertiesEquity(properties);
@@ -1021,7 +1094,9 @@ function advanceMonth(get: GetFn, set: SetFn) {
     netWorthHistory,
     bank: bankResult.bank,
     properties,
-    player: { ...s.player, cash, xp: s.player.xp + (career ? XP_PER_MONTH : 0) },
+    holdings,
+    lifetime: { ...s.lifetime, trades: s.lifetime.trades + sipTrades },
+    player: { ...s.player, cash: sipCash, xp: s.player.xp + (career ? XP_PER_MONTH : 0) },
   });
 
   if (career) {

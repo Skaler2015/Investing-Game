@@ -26,6 +26,8 @@ export function Portfolio() {
   const assets = useGameStore((s) => s.assets);
   const holdings = useGameStore((s) => s.holdings);
   const trades = useGameStore((s) => s.trades);
+  const sips = useGameStore((s) => s.sips);
+  const cancelSIP = useGameStore((s) => s.cancelSIP);
   const [tab, setTab] = useState<Tab>('holdings');
   const [selected, setSelected] = useState<Asset | null>(null);
 
@@ -57,10 +59,39 @@ export function Portfolio() {
           </div>
           {stats.dailyPassiveIncome > 0 && (
             <div className="passive-strip">
-              💸 Passive income: {formatCurrency(stats.dailyPassiveIncome)} / day
+              💸 Passive income: {formatCurrency(stats.dailyPassiveIncome)} / month
             </div>
           )}
         </div>
+
+        {/* Active SIPs */}
+        {sips.length > 0 && (
+          <>
+            <div className="section-title"><span>Active SIPs</span></div>
+            <div className="col" style={{ gap: 8 }}>
+              {sips.map((sip) => {
+                const asset = findAsset(assets, sip.assetId);
+                if (!asset) return null;
+                return (
+                  <div key={sip.id} className="history-row">
+                    <div className="hist-badge buy">📅</div>
+                    <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }} className="truncate">
+                        {asset.name}
+                      </span>
+                      <span className="faint" style={{ fontSize: 11 }}>
+                        {formatCurrency(sip.amount)} / month
+                      </span>
+                    </div>
+                    <button className="link-btn" onClick={() => cancelSIP(sip.id)}>
+                      Stop
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Tabs */}
         <div className="seg-tabs" style={{ marginTop: 14 }}>
