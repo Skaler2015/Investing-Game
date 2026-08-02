@@ -166,11 +166,14 @@ export interface MissionProgress {
   claimed: boolean;
 }
 
+export type AchievementTier = 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Legendary';
+
 export interface AchievementDef {
   id: string;
   title: string;
   description: string;
   icon: string;
+  tier: AchievementTier;
   rewardCoins: number;
   rewardXp: number;
   /** Evaluated against game state to decide if unlocked. */
@@ -184,6 +187,35 @@ export interface AchievementContext {
   realizedPnl: number;
   distinctClassesHeld: number;
   hasAnyHolding: boolean;
+  businessesOwned: number;
+  propertiesOwned: number;
+  sipCount: number;
+  savings: number;
+  totalLoanBalance: number;
+  monthlyExpenses: number;
+}
+
+/** A short interactive lesson with a single reward-bearing quiz question. */
+export interface Lesson {
+  id: string;
+  title: string;
+  icon: string;
+  summary: string;
+  /** Teaching content, one paragraph per entry. */
+  body: string[];
+  question: string;
+  options: string[];
+  answer: number;
+  rewardCoins: number;
+  rewardXp: number;
+}
+
+/** A single AI-advisor recommendation. */
+export interface Advice {
+  id: string;
+  severity: 'good' | 'info' | 'warn';
+  title: string;
+  detail: string;
 }
 
 export interface LevelDef {
@@ -361,7 +393,9 @@ export type ScreenId =
   | 'bank'
   | 'business'
   | 'realestate'
-  | 'news';
+  | 'news'
+  | 'advisor'
+  | 'learn';
 
 /** Ephemeral toast/notification surfaced to the player. */
 export interface Toast {

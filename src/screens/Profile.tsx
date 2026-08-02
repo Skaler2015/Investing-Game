@@ -59,6 +59,7 @@ export function Profile() {
   const bank = useGameStore((s) => s.bank);
   const businesses = useGameStore((s) => s.businesses);
   const properties = useGameStore((s) => s.properties);
+  const taxPaid = useGameStore((s) => s.taxPaid);
   const level = resolveLevel(player.xp);
   const netWorth =
     computeNetWorth(player.cash, holdings, assets) +
@@ -153,6 +154,25 @@ export function Profile() {
           <div className="row between">
             <span className="muted" style={{ fontSize: 13 }}>Profitable Trades</span>
             <span className="mono" style={{ fontWeight: 700 }}>{formatNumber(lifetime.profitableTrades)}</span>
+          </div>
+        </div>
+
+        {/* Tax summary */}
+        <div className="section-title"><span>Tax Paid</span></div>
+        <div className="card card-pad col" style={{ gap: 8 }}>
+          <div className="row between">
+            <span className="muted" style={{ fontSize: 13 }}>Income Tax</span>
+            <span className="mono" style={{ fontWeight: 700 }}>{formatCurrency(taxPaid.income)}</span>
+          </div>
+          <div className="row between">
+            <span className="muted" style={{ fontSize: 13 }}>Capital Gains Tax</span>
+            <span className="mono" style={{ fontWeight: 700 }}>{formatCurrency(taxPaid.capitalGains)}</span>
+          </div>
+          <div className="row between" style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700 }}>Total</span>
+            <span className="mono" style={{ fontWeight: 800 }}>
+              {formatCurrency(taxPaid.income + taxPaid.capitalGains)}
+            </span>
           </div>
         </div>
 

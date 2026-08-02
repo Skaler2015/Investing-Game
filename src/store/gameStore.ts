@@ -47,6 +47,7 @@ import {
 } from '../engine/realEstate';
 import { freshEconomy, PHASES } from '../data/macro';
 import { stepEconomy, economyDrift, economyVol, categoryFor } from '../engine/macro';
+import { incomeTaxMonthly, CAPITAL_GAINS_RATE } from '../data/tax';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
@@ -131,6 +132,10 @@ interface GameSnapshot {
   economy: EconomyState;
   /** Rolling news feed. */
   news: NewsItem[];
+  /** Lifetime tax paid, split by kind. */
+  taxPaid: { income: number; capitalGains: number };
+  /** Completed education lesson ids. */
+  completedLessons: string[];
 }
 
 interface GameState extends GameSnapshot {
@@ -182,6 +187,9 @@ interface GameState extends GameSnapshot {
   // SIP (systematic investment plan)
   addSIP: (assetId: string, amount: number) => { ok: boolean; message: string };
   cancelSIP: (id: string) => void;
+
+  // education
+  completeLesson: (lessonId: string, rewardCoins: number, rewardXp: number) => void;
 
   // ui
   setScreen: (screen: ScreenId) => void;
@@ -255,6 +263,8 @@ function freshSnapshot(name: string): GameSnapshot {
     sips: [],
     economy: freshEconomy(),
     news: [],
+    taxPaid: { income: 0, capitalGains: 0 },
+    completedLessons: [],
   };
 }
 
@@ -289,6 +299,8 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
     sips: snap.sips ?? [],
     economy: snap.economy ?? freshEconomy(),
     news: snap.news ?? [],
+    taxPaid: snap.taxPaid ?? { income: 0, capitalGains: 0 },
+    completedLessons: snap.completedLessons ?? [],
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -357,6 +369,12 @@ function achievementContext(s: GameState): AchievementContext {
     realizedPnl: s.player.realizedPnl,
     distinctClassesHeld: classes.size,
     hasAnyHolding: s.holdings.some((h) => h.quantity > 0),
+    businessesOwned: s.businesses.length,
+    propertiesOwned: s.properties.length,
+    sipCount: s.sips.length,
+    savings: s.bank.savings,
+    totalLoanBalance: s.bank.loans.reduce((sum, l) => sum + l.balance, 0),
+    monthlyExpenses: getCareer(s.player.careerId)?.expenses ?? 0,
   };
 }
 
@@ -433,6 +451,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       sips: s.sips,
       economy: s.economy,
       news: s.news,
+      taxPaid: s.taxPaid,
+      completedLessons: s.completedLessons,
     };
     void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
@@ -747,6 +767,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().save();
   },
 
+  completeLesson: (lessonId, rewardCoins, rewardXp) => {
+    const s = get();
+    if (s.completedLessons.includes(lessonId)) return;
+    set({
+      completedLessons: [...s.completedLessons, lessonId],
+      player: { ...s.player, coins: s.player.coins + rewardCoins, xp: s.player.xp + rewardXp },
+    });
+    get().pushToast({
+      title: 'Lesson complete! 🎓',
+      message: `+${rewardCoins} coins · +${rewardXp} XP`,
+      kind: 'reward',
+    });
+    get().save();
+  },
+
   buy: (assetId, quantity) => {
     const s = get();
     const asset = findAsset(s.assets, assetId);
@@ -826,6 +861,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const proceeds = asset.price * quantity;
     const realized = (asset.price - holding.avgCost) * quantity;
+    // Short-term capital-gains tax on any realised profit.
+    const cgTax = realized > 0 ? Math.round(realized * CAPITAL_GAINS_RATE) : 0;
+    const netProceeds = proceeds - cgTax;
     const remaining = holding.quantity - quantity;
     const holdings =
       remaining > 0
@@ -851,9 +889,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       holdings,
       trades: [trade, ...s.trades].slice(0, TRADE_HISTORY_LIMIT),
+      taxPaid: { ...s.taxPaid, capitalGains: s.taxPaid.capitalGains + cgTax },
       player: {
         ...s.player,
-        cash: s.player.cash + proceeds,
+        cash: s.player.cash + netProceeds,
         xp: s.player.xp + XP_PER_TRADE,
         realizedPnl: s.player.realizedPnl + realized,
       },
@@ -1006,10 +1045,13 @@ function advanceMonth(get: GetFn, set: SetFn) {
   const passive = Math.round(computePortfolioStats(s.holdings, s.assets).dailyPassiveIncome);
   const now = Date.now();
 
+  const incomeTax = career ? incomeTaxMonthly(salary) : 0;
+
   const entries: LedgerEntry[] = [];
   if (salary) entries.push({ id: uid('led'), month, label: `${career?.title} salary`, amount: salary, kind: 'salary', timestamp: now });
   if (passive > 0) entries.push({ id: uid('led'), month, label: 'Passive income', amount: passive, kind: 'passive', timestamp: now });
   if (expenses) entries.push({ id: uid('led'), month, label: 'Living expenses', amount: -expenses, kind: 'expense', timestamp: now });
+  if (incomeTax > 0) entries.push({ id: uid('led'), month, label: 'Income tax', amount: -incomeTax, kind: 'expense', timestamp: now });
 
   let lifeAmt = 0;
   const life = career ? maybeLifeEvent() : null;
@@ -1018,7 +1060,7 @@ function advanceMonth(get: GetFn, set: SetFn) {
     entries.push({ id: uid('led'), month, label: life.label, amount: lifeAmt, kind: 'event', timestamp: now });
   }
 
-  const incomeNet = salary + passive - expenses + lifeAmt;
+  const incomeNet = salary + passive - expenses - incomeTax + lifeAmt;
   const cashAfterLife = Math.max(0, s.player.cash + incomeNet);
 
   // Banking: savings interest, FD maturities, loan EMIs.
@@ -1125,6 +1167,7 @@ function advanceMonth(get: GetFn, set: SetFn) {
     holdings,
     economy: eco.next,
     lifetime: { ...s.lifetime, trades: s.lifetime.trades + sipTrades },
+    taxPaid: { ...s.taxPaid, income: s.taxPaid.income + incomeTax },
     player: { ...s.player, cash: sipCash, xp: s.player.xp + (career ? XP_PER_MONTH : 0) },
   });
 

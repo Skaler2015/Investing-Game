@@ -63,8 +63,16 @@ phase ships live on its own.
   - Rolling, categorised news feed (economy / business / company / policy /
     crypto) with a dedicated News & Economy screen; dashboard Economy card +
     tappable news ticker
-- [ ] **Phase 7 — Progression at scale**: 500+ missions, tiered achievements
-      (Bronze→Legendary), tax system, AI advisor, education/tutorial mode.
+- [x] **Phase 7 — Progression, tax, advice & education**
+  - Tiered achievements (Bronze → Silver → Gold → Diamond → Legendary),
+    generated across milestone families with tier-scaled rewards
+  - Tax system: progressive income-tax slabs deducted monthly + short-term
+    capital-gains tax on profitable sells, with a Tax summary on the profile
+  - AI Financial Advisor: a rules engine that inspects the whole portfolio and
+    returns prioritised guidance (emergency fund, diversification, risk, debt,
+    idle cash, SIP…), surfaced on the dashboard and a dedicated screen
+  - Learn & Earn: bite-sized financial-literacy lessons with reward-bearing
+    quizzes
 - [ ] **Phase 8 — Live & social**: cloud accounts (Firebase/Supabase), real
       leaderboards, seasons/events, spin-wheel & daily systems, sound, PDF
       exports, admin/remote-config.

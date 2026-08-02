@@ -5,7 +5,7 @@ import { Header } from '../components/layout/Header';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Icon } from '../components/ui/Icon';
 import { useGameStore, getMissionViews } from '../store/gameStore';
-import { ACHIEVEMENTS } from '../data/achievements';
+import { ACHIEVEMENTS, TIER_COLOR } from '../data/achievements';
 import { WEEKLY_CHALLENGES } from '../data/weekly';
 import { DAILY_REWARD_BASE_COINS, DAILY_REWARD_STREAK_CAP } from '../store/constants';
 import { formatCompactNumber, formatCurrency } from '../utils/format';
@@ -189,19 +189,28 @@ function RewardsPanel() {
 function AchievementsPanel() {
   const unlocked = useGameStore((s) => s.player.unlockedAchievements);
   const earned = ACHIEVEMENTS.filter((a) => unlocked.includes(a.id)).length;
+  // Unlocked first, then by tier weight, so progress feels rewarding.
+  const order = ['Legendary', 'Diamond', 'Gold', 'Silver', 'Bronze'];
+  const sorted = [...ACHIEVEMENTS].sort((a, b) => {
+    const ua = unlocked.includes(a.id) ? 0 : 1;
+    const ub = unlocked.includes(b.id) ? 0 : 1;
+    if (ua !== ub) return ua - ub;
+    return order.indexOf(a.tier) - order.indexOf(b.tier);
+  });
 
   return (
-    <div className="col" style={{ gap: 12, marginTop: 16 }}>
+    <div className="col" style={{ gap: 10, marginTop: 16 }}>
       <div className="row between" style={{ margin: '0 4px' }}>
         <span className="faint" style={{ fontSize: 12 }}>
-          Unlock milestones as you grow your wealth.
+          {earned} of {ACHIEVEMENTS.length} unlocked across 5 tiers.
         </span>
         <span className="pill pill-up">
           <Award size={12} /> {earned}/{ACHIEVEMENTS.length}
         </span>
       </div>
-      {ACHIEVEMENTS.map((a) => {
+      {sorted.map((a) => {
         const isUnlocked = unlocked.includes(a.id);
+        const color = TIER_COLOR[a.tier];
         return (
           <motion.div
             key={a.id}
@@ -209,14 +218,23 @@ function AchievementsPanel() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className={`ach-ic ${isUnlocked ? 'on' : ''}`}>
+            <div
+              className="ach-ic"
+              style={isUnlocked ? { color, background: `${color}22` } : undefined}
+            >
               {isUnlocked ? <Icon name={a.icon} size={22} /> : <Lock size={20} />}
             </div>
-            <div className="col" style={{ gap: 2, flex: 1 }}>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</span>
-              <span className="faint" style={{ fontSize: 12 }}>
-                {a.description}
-              </span>
+            <div className="col" style={{ gap: 3, flex: 1, minWidth: 0 }}>
+              <div className="row gap-8">
+                <span style={{ fontWeight: 700, fontSize: 14 }} className="truncate">{a.title}</span>
+                <span
+                  className="tier-chip"
+                  style={{ color, background: `${color}1f`, borderColor: `${color}55` }}
+                >
+                  {a.tier}
+                </span>
+              </div>
+              <span className="faint" style={{ fontSize: 12 }}>{a.description}</span>
             </div>
             <div className="reward-tag">
               <Coins size={12} /> {a.rewardCoins}

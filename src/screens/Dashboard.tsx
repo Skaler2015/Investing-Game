@@ -31,7 +31,9 @@ import {
   marketSentiment,
   economicCondition,
   portfolioRisk,
+  diversificationScore,
 } from '../engine/insights';
+import { buildAdvice } from '../engine/advisor';
 import { bankEquity } from '../engine/banking';
 import { businessesEquity, businessesMonthlyProfit } from '../engine/business';
 import { propertiesEquity, propertiesMonthlyIncome } from '../engine/realEstate';
@@ -63,6 +65,7 @@ export function Dashboard() {
   const businesses = useGameStore((s) => s.businesses);
   const properties = useGameStore((s) => s.properties);
   const economy = useGameStore((s) => s.economy);
+  const sips = useGameStore((s) => s.sips);
 
   const [selected, setSelected] = useState<Asset | null>(null);
   const ecoCfg = PHASES[economy.phase];
@@ -75,6 +78,7 @@ export function Dashboard() {
   const reIncome = propertiesMonthlyIncome(properties);
   const loanBalance = bank.loans.reduce((sum, l) => sum + l.balance, 0);
   const netWorth = computeNetWorth(player.cash, holdings, assets) + bankNet + bizNet + reNet;
+
   const dailyPnl = netWorth - netWorthDayStart;
   const dailyPnlPct = netWorthDayStart > 0 ? (dailyPnl / netWorthDayStart) * 100 : 0;
   const level = resolveLevel(player.xp);
@@ -94,6 +98,22 @@ export function Dashboard() {
   const sentiment = marketSentiment(assets, events);
   const condition = economicCondition(assets);
   const risk = portfolioRisk(holdings, assets);
+
+  // AI advisor: surface the single most important tip.
+  const topAdvice = buildAdvice({
+    netWorth,
+    cash: player.cash,
+    investedValue: stats.investedValue,
+    savings: bank.savings,
+    monthlyIncome,
+    monthlyExpenses,
+    loanBalance,
+    creditScore: bank.creditScore,
+    diversification: diversificationScore(holdings, assets),
+    portfolioRisk: risk.score,
+    sipCount: sips.length,
+    hasCareer: !!career,
+  })[0];
 
   const growthData = netWorthHistory.map((p) => ({ t: p.month, price: p.value }));
 
@@ -297,6 +317,31 @@ export function Dashboard() {
               {properties.length === 0
                 ? 'Buy property for rent + appreciation'
                 : `${properties.length} owned · rent ${formatCurrency(reIncome, { sign: true })}/mo`}
+            </span>
+          </div>
+          <ChevronRight size={18} className="faint" />
+        </button>
+
+        {/* AI Advisor summary */}
+        <button className="glass-card bank-card" onClick={() => setScreen('advisor')}>
+          <div className="bank-card-ic">🤖</div>
+          <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>AI Advisor</span>
+            <span className="faint truncate" style={{ fontSize: 11.5 }}>
+              {topAdvice.severity === 'good' ? '✅ ' : topAdvice.severity === 'warn' ? '⚠️ ' : '💡 '}
+              {topAdvice.title}
+            </span>
+          </div>
+          <ChevronRight size={18} className="faint" />
+        </button>
+
+        {/* Learn & Earn */}
+        <button className="glass-card bank-card" onClick={() => setScreen('learn')}>
+          <div className="bank-card-ic">🎓</div>
+          <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>Learn & Earn</span>
+            <span className="faint" style={{ fontSize: 11.5 }}>
+              Quick lessons + quizzes for coins & XP
             </span>
           </div>
           <ChevronRight size={18} className="faint" />
