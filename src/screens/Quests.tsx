@@ -7,6 +7,7 @@ import { Icon } from '../components/ui/Icon';
 import { useGameStore, getMissionViews } from '../store/gameStore';
 import { ACHIEVEMENTS, TIER_COLOR } from '../data/achievements';
 import { WEEKLY_CHALLENGES } from '../data/weekly';
+import { SPIN_PRIZES } from '../data/spin';
 import { DAILY_REWARD_BASE_COINS, DAILY_REWARD_STREAK_CAP } from '../store/constants';
 import { formatCompactNumber, formatCurrency } from '../utils/format';
 
@@ -104,6 +105,8 @@ function RewardsPanel() {
 
   return (
     <div className="col" style={{ gap: 14, marginTop: 16 }}>
+      <SpinCard />
+
       {/* Daily login */}
       <div className="card card-pad col" style={{ gap: 12 }}>
         <div className="row between">
@@ -182,6 +185,70 @@ function RewardsPanel() {
       <div className="info-note" style={{ marginTop: 4 }}>
         🎉 Event bonuses arrive with special market events — keep an eye on the news ticker!
       </div>
+    </div>
+  );
+}
+
+function SpinCard() {
+  const spinLastDay = useGameStore((s) => s.spinLastDay);
+  const day = useGameStore((s) => s.day);
+  const spin = useGameStore((s) => s.spinWheel);
+
+  const [rotation, setRotation] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const available = spinLastDay !== day;
+  const seg = 360 / SPIN_PRIZES.length;
+  const gradient = `conic-gradient(${SPIN_PRIZES.map(
+    (p, i) => `${p.color} ${i * seg}deg ${(i + 1) * seg}deg`
+  ).join(', ')})`;
+
+  const doSpin = () => {
+    if (spinning || !available) return;
+    const r = spin();
+    if (!r.ok || r.prizeIndex == null) {
+      setResult(r.message);
+      return;
+    }
+    const i = r.prizeIndex;
+    setSpinning(true);
+    setResult(null);
+    setRotation((prev) => {
+      const targetMod = (((360 - (i + 0.5) * seg) % 360) + 360) % 360;
+      const cur = ((prev % 360) + 360) % 360;
+      const delta = (targetMod - cur + 360) % 360;
+      return prev + 360 * 5 + delta;
+    });
+    window.setTimeout(() => {
+      setSpinning(false);
+      setResult(`You won ${SPIN_PRIZES[i].label}!`);
+    }, 3400);
+  };
+
+  return (
+    <div className="card card-pad col" style={{ gap: 12, alignItems: 'center' }}>
+      <div className="row between" style={{ width: '100%' }}>
+        <div className="row gap-8">
+          <span style={{ fontSize: 18 }}>🎡</span>
+          <span style={{ fontWeight: 800, fontSize: 15 }}>Daily Spin</span>
+        </div>
+        <span className="faint" style={{ fontSize: 11.5 }}>One free spin every day</span>
+      </div>
+
+      <div className="spin-wheel-wrap">
+        <div className="spin-pointer" />
+        <div
+          className="spin-wheel"
+          style={{ background: gradient, transform: `rotate(${rotation}deg)` }}
+        />
+        <div className="spin-hub">₹</div>
+      </div>
+
+      <button className="btn btn-primary btn-block" onClick={doSpin} disabled={!available || spinning}>
+        {spinning ? 'Spinning…' : available ? 'Spin the wheel' : 'Come back tomorrow'}
+      </button>
+      {result && <span className="faint" style={{ fontSize: 13, textAlign: 'center' }}>{result}</span>}
     </div>
   );
 }

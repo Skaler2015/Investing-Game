@@ -74,6 +74,33 @@ export interface SIP {
   createdMonth: number;
 }
 
+/**
+ * A resting order that fills automatically when the market crosses its price.
+ *  - kind 'limit' (buy):  fills when price falls to/below `price`
+ *  - kind 'stop'  (sell): fills when price falls to/below `price` (stop-loss)
+ *  - kind 'take'  (sell): fills when price rises to/above `price` (take-profit)
+ */
+export type OrderKind = 'limit' | 'stop' | 'take';
+
+export interface PendingOrder {
+  id: string;
+  assetId: string;
+  side: 'buy' | 'sell';
+  kind: OrderKind;
+  price: number;
+  quantity: number;
+  createdAt: number;
+}
+
+/** A one-shot price alert that notifies when the market crosses `price`. */
+export interface PriceAlert {
+  id: string;
+  assetId: string;
+  price: number;
+  dir: 'above' | 'below';
+  createdAt: number;
+}
+
 export type EconomyPhase = 'boom' | 'expansion' | 'slowdown' | 'recession' | 'recovery';
 
 /** The macro backdrop that biases the whole market. */

@@ -12,6 +12,8 @@ import {
   ArrowDownRight,
   Coins,
   Gauge as GaugeIcon,
+  Target,
+  Pencil,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { AssetCard } from '../components/game/AssetCard';
@@ -185,6 +187,8 @@ export function Dashboard() {
             </div>
           </div>
         </motion.div>
+
+        <GoalCard netWorth={netWorth} />
 
         {/* Seasonal event banner */}
         {season && (
@@ -491,6 +495,76 @@ function GaugeRow({ label, g }: { label: string; g: { score: number; label: stri
       </div>
       <div className="gauge-track">
         <div className="gauge-fill" style={{ width: `${g.score}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+/** Financial-goal tracker: set a target net worth and watch progress toward it. */
+function GoalCard({ netWorth }: { netWorth: number }) {
+  const goal = useGameStore((s) => s.goalNetWorth);
+  const setGoal = useGameStore((s) => s.setGoal);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<number>(goal ?? 1000000);
+
+  if (goal == null && !editing) {
+    return (
+      <button className="card card-pad goal-empty" onClick={() => setEditing(true)}>
+        <Target size={17} className="muted" />
+        <span style={{ fontWeight: 700, fontSize: 13.5 }}>Set a net-worth goal</span>
+        <span className="faint" style={{ fontSize: 11.5 }}>Aim for a target and track your progress</span>
+      </button>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="card card-pad col" style={{ gap: 10, marginTop: 12 }}>
+        <div className="row gap-8">
+          <Target size={16} className="muted" />
+          <span style={{ fontWeight: 700, fontSize: 13.5 }}>Your net-worth goal (₹)</span>
+        </div>
+        <input
+          className="amount-field mono"
+          type="number"
+          value={value || ''}
+          onChange={(e) => setValue(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+        />
+        <div className="grid-2">
+          <button className="btn btn-ghost btn-block" onClick={() => { setGoal(null); setEditing(false); }}>
+            Clear goal
+          </button>
+          <button className="btn btn-primary btn-block" onClick={() => { setGoal(value); setEditing(false); }}>
+            Save goal
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const pct = goal! > 0 ? Math.min(1, netWorth / goal!) : 0;
+  const remaining = Math.max(0, goal! - netWorth);
+  const reached = netWorth >= goal!;
+
+  return (
+    <div className="card card-pad col" style={{ gap: 10, marginTop: 12 }}>
+      <div className="row between">
+        <div className="row gap-8">
+          <Target size={16} className="muted" />
+          <span style={{ fontWeight: 700, fontSize: 13.5 }}>Net-worth goal</span>
+        </div>
+        <button className="link-btn" onClick={() => { setValue(goal!); setEditing(true); }}>
+          <Pencil size={13} /> Edit
+        </button>
+      </div>
+      <ProgressBar value={pct} gradient="linear-gradient(90deg, var(--green), #3b82f6)" />
+      <div className="row between">
+        <span className="faint mono" style={{ fontSize: 11.5 }}>
+          {formatCurrency(netWorth)} / {formatCurrency(goal!)}
+        </span>
+        <span className={reached ? 'up' : 'faint'} style={{ fontSize: 11.5, fontWeight: 700 }}>
+          {reached ? '🎯 Goal reached!' : `${formatPct(pct * 100)} · ${formatCurrency(remaining)} to go`}
+        </span>
       </div>
     </div>
   );

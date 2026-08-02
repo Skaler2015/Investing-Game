@@ -19,6 +19,8 @@ import type {
   SIP,
   EconomyState,
   NewsItem,
+  PendingOrder,
+  PriceAlert,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
 import { getCareer } from '../data/careers';
@@ -58,6 +60,8 @@ import {
   ageEvents,
   maybeSpawnEvent,
 } from '../engine/market';
+import { orderShouldFill, alertShouldFire, orderKindLabel } from '../engine/orders';
+import { pickSpinPrize } from '../data/spin';
 import {
   computeNetWorth,
   computePortfolioStats,
@@ -137,6 +141,16 @@ interface GameSnapshot {
   taxPaid: { income: number; capitalGains: number };
   /** Completed education lesson ids. */
   completedLessons: string[];
+  /** Starred assets for the Market watchlist. */
+  watchlist: string[];
+  /** Resting limit / stop-loss / take-profit orders. */
+  orders: PendingOrder[];
+  /** Active one-shot price alerts. */
+  alerts: PriceAlert[];
+  /** Target net worth the player is aiming for (null = none set). */
+  goalNetWorth: number | null;
+  /** Day-key of the last claimed daily spin (null = never). */
+  spinLastDay: string | null;
 }
 
 interface GameState extends GameSnapshot {
@@ -188,6 +202,15 @@ interface GameState extends GameSnapshot {
   // SIP (systematic investment plan)
   addSIP: (assetId: string, amount: number) => { ok: boolean; message: string };
   cancelSIP: (id: string) => void;
+
+  // watchlist / orders / alerts / goals / spin
+  toggleWatch: (assetId: string) => void;
+  placeOrder: (o: Omit<PendingOrder, 'id' | 'createdAt'>) => { ok: boolean; message: string };
+  cancelOrder: (id: string) => void;
+  addAlert: (a: Omit<PriceAlert, 'id' | 'createdAt'>) => { ok: boolean; message: string };
+  removeAlert: (id: string) => void;
+  setGoal: (amount: number | null) => void;
+  spinWheel: () => { ok: boolean; message: string; prizeIndex?: number };
 
   // education
   completeLesson: (lessonId: string, rewardCoins: number, rewardXp: number) => void;
@@ -266,6 +289,11 @@ function freshSnapshot(name: string): GameSnapshot {
     news: [],
     taxPaid: { income: 0, capitalGains: 0 },
     completedLessons: [],
+    watchlist: [],
+    orders: [],
+    alerts: [],
+    goalNetWorth: null,
+    spinLastDay: null,
   };
 }
 
@@ -302,6 +330,11 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
     news: snap.news ?? [],
     taxPaid: snap.taxPaid ?? { income: 0, capitalGains: 0 },
     completedLessons: snap.completedLessons ?? [],
+    watchlist: snap.watchlist ?? [],
+    orders: snap.orders ?? [],
+    alerts: snap.alerts ?? [],
+    goalNetWorth: snap.goalNetWorth ?? null,
+    spinLastDay: snap.spinLastDay ?? null,
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -372,6 +405,74 @@ function achievementContext(s: GameState): AchievementContext {
     totalLoanBalance: s.bank.loans.reduce((sum, l) => sum + l.balance, 0),
     monthlyExpenses: getCareer(s.player.careerId)?.expenses ?? 0,
   };
+}
+
+/** Best-effort OS notification (only if the user has granted permission). */
+function notify(title: string, body: string) {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification(title, { body });
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Each tick: fire resting orders and price alerts whose price is crossed. */
+function processOrdersAndAlerts(get: GetFn, set: SetFn) {
+  const s = get();
+  if (s.orders.length === 0 && s.alerts.length === 0) return;
+
+  // --- resting orders ---
+  if (s.orders.length > 0) {
+    const survivingOrders: PendingOrder[] = [];
+    for (const order of s.orders) {
+      const asset = findAsset(s.assets, order.assetId);
+      if (!asset) continue; // drop orders for unknown assets
+      if (!orderShouldFill(order, asset.price)) {
+        survivingOrders.push(order);
+        continue;
+      }
+      const res =
+        order.side === 'buy'
+          ? get().buy(order.assetId, order.quantity)
+          : get().sell(order.assetId, order.quantity);
+      const label = orderKindLabel(order.kind);
+      if (res.ok) {
+        get().pushToast({
+          title: `${label} filled`,
+          message: `${order.quantity} ${asset.symbol} @ ₹${Math.round(asset.price).toLocaleString('en-IN')}`,
+          kind: 'success',
+        });
+        notify(`${label} filled`, `${asset.name} at ₹${Math.round(asset.price).toLocaleString('en-IN')}`);
+      } else {
+        get().pushToast({ title: `${label} cancelled`, message: res.message, kind: 'warning' });
+      }
+    }
+    if (survivingOrders.length !== s.orders.length) set({ orders: survivingOrders });
+  }
+
+  // --- price alerts (re-read state; a filled order may have changed things) ---
+  const cur = get();
+  if (cur.alerts.length > 0) {
+    const remaining: PriceAlert[] = [];
+    for (const alert of cur.alerts) {
+      const asset = findAsset(cur.assets, alert.assetId);
+      if (!asset) continue;
+      if (!alertShouldFire(alert, asset.price)) {
+        remaining.push(alert);
+        continue;
+      }
+      const arrow = alert.dir === 'above' ? 'crossed above' : 'dropped below';
+      get().pushToast({
+        title: `⏰ ${asset.symbol} alert`,
+        message: `${asset.name} ${arrow} ₹${Math.round(alert.price).toLocaleString('en-IN')} (now ₹${Math.round(asset.price).toLocaleString('en-IN')})`,
+        kind: 'warning',
+      });
+      notify(`${asset.symbol} price alert`, `${asset.name} is now ₹${Math.round(asset.price).toLocaleString('en-IN')}`);
+    }
+    if (remaining.length !== cur.alerts.length) set({ alerts: remaining });
+  }
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -450,6 +551,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       news: s.news,
       taxPaid: s.taxPaid,
       completedLessons: s.completedLessons,
+      watchlist: s.watchlist,
+      orders: s.orders,
+      alerts: s.alerts,
+      goalNetWorth: s.goalNetWorth,
+      spinLastDay: s.spinLastDay,
     };
     persistence.saveSnapshot(s.authUser.id, snapshot);
   },
@@ -490,6 +596,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     set({ assets, events, news, tick: nextTick, leaderboard });
+
+    // Fire any resting orders / price alerts against the fresh prices.
+    processOrdersAndAlerts(get, set);
 
     // Monthly cash-flow cycle: salary, passive income, living costs, events.
     if (nextTick % TICKS_PER_MONTH === 0) {
@@ -762,6 +871,97 @@ export const useGameStore = create<GameState>((set, get) => ({
   cancelSIP: (id) => {
     set({ sips: get().sips.filter((p) => p.id !== id) });
     get().save();
+  },
+
+  toggleWatch: (assetId) => {
+    const s = get();
+    const on = s.watchlist.includes(assetId);
+    set({ watchlist: on ? s.watchlist.filter((id) => id !== assetId) : [...s.watchlist, assetId] });
+    get().save();
+  },
+
+  placeOrder: (o) => {
+    const s = get();
+    const asset = findAsset(s.assets, o.assetId);
+    if (!asset) return { ok: false, message: 'Asset not found' };
+    if (!(o.price > 0)) return { ok: false, message: 'Enter a valid trigger price' };
+    if (!(o.quantity > 0)) return { ok: false, message: 'Enter a valid quantity' };
+    if (o.side === 'sell') {
+      const owned = s.holdings.find((h) => h.assetId === o.assetId)?.quantity ?? 0;
+      if (owned <= 0) return { ok: false, message: "You don't own this asset" };
+      if (o.quantity > owned) return { ok: false, message: 'Quantity exceeds what you own' };
+    }
+    const order: PendingOrder = { ...o, id: uid('order'), createdAt: Date.now() };
+    set({ orders: [order, ...s.orders].slice(0, 50) });
+    get().pushToast({
+      title: `${orderKindLabel(o.kind)} placed`,
+      message: `${o.quantity} ${asset.symbol} @ ₹${Math.round(o.price).toLocaleString('en-IN')}`,
+      kind: 'success',
+    });
+    get().save();
+    return { ok: true, message: 'Order placed' };
+  },
+
+  cancelOrder: (id) => {
+    set({ orders: get().orders.filter((o) => o.id !== id) });
+    get().save();
+  },
+
+  addAlert: (a) => {
+    const s = get();
+    const asset = findAsset(s.assets, a.assetId);
+    if (!asset) return { ok: false, message: 'Asset not found' };
+    if (!(a.price > 0)) return { ok: false, message: 'Enter a valid price' };
+    const alert: PriceAlert = { ...a, id: uid('alert'), createdAt: Date.now() };
+    set({ alerts: [alert, ...s.alerts].slice(0, 50) });
+    // Ask for OS notification permission the first time an alert is set.
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        void Notification.requestPermission();
+      }
+    } catch {
+      /* ignore */
+    }
+    get().pushToast({
+      title: 'Price alert set ⏰',
+      message: `${asset.symbol} ${a.dir} ₹${Math.round(a.price).toLocaleString('en-IN')}`,
+      kind: 'success',
+    });
+    get().save();
+    return { ok: true, message: 'Alert set' };
+  },
+
+  removeAlert: (id) => {
+    set({ alerts: get().alerts.filter((a) => a.id !== id) });
+    get().save();
+  },
+
+  setGoal: (amount) => {
+    set({ goalNetWorth: amount && amount > 0 ? Math.floor(amount) : null });
+    get().save();
+  },
+
+  spinWheel: () => {
+    const s = get();
+    const today = dayKey();
+    if (s.spinLastDay === today) {
+      return { ok: false, message: 'Come back tomorrow for another spin' };
+    }
+    const { prize, index } = pickSpinPrize();
+    set({
+      spinLastDay: today,
+      player: {
+        ...s.player,
+        coins: s.player.coins + prize.coins,
+        xp: s.player.xp + prize.xp,
+      },
+    });
+    const bits = [prize.coins ? `+${prize.coins} coins` : '', prize.xp ? `+${prize.xp} XP` : '']
+      .filter(Boolean)
+      .join(' · ');
+    get().pushToast({ title: 'Daily Spin 🎡', message: `You won ${prize.label}! ${bits}`, kind: 'reward' });
+    get().save();
+    return { ok: true, message: prize.label, prizeIndex: index };
   },
 
   completeLesson: (lessonId, rewardCoins, rewardXp) => {

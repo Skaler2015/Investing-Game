@@ -92,6 +92,19 @@ phase ships live on its own.
   - One-time server setup is in `SETUP-BACKEND.md` (copy `_config.php`, set the
     DB password).
 
-All nine phases shipped. Future ideas: multiplayer, spin-wheel & clubs/
-tournaments, and a real remote-config admin panel — each slots onto the
-existing data-driven, service-abstracted architecture.
+- [x] **Phase 10 — Market Pro & engagement**
+  - Market screen: live **search** (name/symbol), **sort** (top gainers/losers,
+    price, name) and a **Watchlist** (⭐) filter; star any asset from its sheet.
+  - **Buy by ₹ amount** (not just quantity) with an all-cash shortcut.
+  - **Price alerts** (notify when a price crosses a target, with optional OS
+    notifications) and **auto orders** — limit-buy, stop-loss and take-profit
+    that fill automatically on each tick.
+  - Chart **time-range** tabs (1D / 1W / 1M / All) on line & candle views.
+  - **Daily Spin** wheel (one weighted free spin a day) on the Rewards tab.
+  - **Net-worth goal** tracker on the dashboard with live progress.
+  - All new state lives in the snapshot (migration-safe) so it syncs to the
+    cloud database automatically.
+
+All ten phases shipped. Future ideas: multiplayer, clubs/tournaments, and a
+richer remote-config admin panel — each slots onto the existing data-driven,
+service-abstracted architecture.
