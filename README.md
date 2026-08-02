@@ -104,6 +104,10 @@ works offline thanks to a service worker that caches the app shell.
 > The service worker only activates on a production build served over HTTPS (or
 > `localhost`). Use `npm run build && npm run preview`, or deploy the `dist/`
 > folder to any static host (Netlify, Vercel, GitHub Pages, …).
+>
+> 🚀 **Auto-deploy to Hostinger:** pushing to `main` builds and publishes the
+> site to your subdomain automatically — see **[DEPLOY.md](DEPLOY.md)** for the
+> one-time setup.
 
 **Android / Chrome:** open the site → tap the in-app **Install** banner, or use
 the browser menu → **Install app / Add to Home screen**.
