@@ -14,17 +14,26 @@ import type {
   NetWorthPoint,
   BankState,
   LoanType,
+  Business,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
 import { getCareer } from '../data/careers';
 import { maybeLifeEvent } from '../data/lifeEvents';
 import { CREDIT, FD_PRODUCTS, loanProduct } from '../data/banking';
+import { getBusinessDef } from '../data/businesses';
 import {
   emiFor,
   bankEquity,
   loanEligibility,
   processBankMonth,
 } from '../engine/banking';
+import {
+  businessEconomyFactor,
+  businessProfit,
+  businessValue,
+  businessesEquity,
+  upgradeCost,
+} from '../engine/business';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
@@ -99,6 +108,8 @@ interface GameSnapshot {
   ledger: LedgerEntry[];
   /** Banking position: savings, deposits, loans, credit score. */
   bank: BankState;
+  /** Owned businesses (tycoon layer). */
+  businesses: Business[];
 }
 
 interface GameState extends GameSnapshot {
@@ -135,6 +146,12 @@ interface GameState extends GameSnapshot {
   openFD: (amount: number, termMonths: number) => { ok: boolean; message: string };
   takeLoan: (type: LoanType, amount: number, termMonths: number) => { ok: boolean; message: string };
   repayLoan: (loanId: string) => { ok: boolean; message: string };
+
+  // businesses
+  buyBusiness: (defId: string) => { ok: boolean; message: string };
+  upgradeBusiness: (id: string) => { ok: boolean; message: string };
+  toggleMarketing: (id: string) => void;
+  sellBusiness: (id: string) => { ok: boolean; message: string };
 
   // ui
   setScreen: (screen: ScreenId) => void;
@@ -203,6 +220,7 @@ function freshSnapshot(name: string): GameSnapshot {
     netWorthHistory: [{ month: 0, value: STARTING_CASH }],
     ledger: [],
     bank: freshBank(),
+    businesses: [],
   };
 }
 
@@ -221,6 +239,7 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
         : [{ month: 0, value: computeNetWorth(snap.player.cash, snap.holdings, snap.assets) }],
     ledger: snap.ledger ?? [],
     bank: snap.bank ?? freshBank(),
+    businesses: snap.businesses ?? [],
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -271,7 +290,10 @@ async function loadGameForUser(user: AuthUser, set: SetFn, get: GetFn) {
 
 /** Build the achievement context from current state. */
 function achievementContext(s: GameState): AchievementContext {
-  const netWorth = computeNetWorth(s.player.cash, s.holdings, s.assets) + bankEquity(s.bank);
+  const netWorth =
+    computeNetWorth(s.player.cash, s.holdings, s.assets) +
+    bankEquity(s.bank) +
+    businessesEquity(s.businesses);
   const classes = new Set(
     s.holdings
       .filter((h) => h.quantity > 0)
@@ -356,6 +378,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       netWorthHistory: s.netWorthHistory,
       ledger: s.ledger,
       bank: s.bank,
+      businesses: s.businesses,
     };
     void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
@@ -517,6 +540,68 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().pushToast({ title: 'Loan closed early 🎉', message: `${loan.type} fully repaid`, kind: 'success' });
     get().save();
     return { ok: true, message: 'Loan repaid' };
+  },
+
+  buyBusiness: (defId) => {
+    const s = get();
+    const def = getBusinessDef(defId);
+    if (!def) return { ok: false, message: 'Business not found' };
+    if (def.cost > s.player.cash) return { ok: false, message: 'Not enough cash' };
+    const biz: Business = {
+      id: uid('biz'),
+      defId,
+      level: 1,
+      marketing: false,
+      purchasedMonth: s.month,
+    };
+    set({
+      player: { ...s.player, cash: s.player.cash - def.cost },
+      businesses: [...s.businesses, biz],
+    });
+    get().pushToast({ title: `Acquired ${def.name}! 🏢`, message: `−${def.cost.toLocaleString('en-IN')} · earns monthly`, kind: 'success' });
+    evaluateAchievements(get, set);
+    get().save();
+    return { ok: true, message: 'Business acquired' };
+  },
+
+  upgradeBusiness: (id) => {
+    const s = get();
+    const biz = s.businesses.find((b) => b.id === id);
+    const def = biz && getBusinessDef(biz.defId);
+    if (!biz || !def) return { ok: false, message: 'Business not found' };
+    if (biz.level >= def.maxLevel) return { ok: false, message: 'Already at max level' };
+    const cost = upgradeCost(def, biz.level);
+    if (cost > s.player.cash) return { ok: false, message: 'Not enough cash' };
+    set({
+      player: { ...s.player, cash: s.player.cash - cost },
+      businesses: s.businesses.map((b) => (b.id === id ? { ...b, level: b.level + 1 } : b)),
+    });
+    get().pushToast({ title: `${def.name} upgraded to Lv ${biz.level + 1}`, message: `−${cost.toLocaleString('en-IN')} · higher profit`, kind: 'success' });
+    get().save();
+    return { ok: true, message: 'Upgraded' };
+  },
+
+  toggleMarketing: (id) => {
+    const s = get();
+    set({
+      businesses: s.businesses.map((b) => (b.id === id ? { ...b, marketing: !b.marketing } : b)),
+    });
+    get().save();
+  },
+
+  sellBusiness: (id) => {
+    const s = get();
+    const biz = s.businesses.find((b) => b.id === id);
+    const def = biz && getBusinessDef(biz.defId);
+    if (!biz || !def) return { ok: false, message: 'Business not found' };
+    const proceeds = Math.round(businessValue(def, biz) * 0.85);
+    set({
+      player: { ...s.player, cash: s.player.cash + proceeds },
+      businesses: s.businesses.filter((b) => b.id !== id),
+    });
+    get().pushToast({ title: `Sold ${def.name}`, message: `+${proceeds.toLocaleString('en-IN')} (85% of value)`, kind: 'info' });
+    get().save();
+    return { ok: true, message: 'Business sold' };
   },
 
   buy: (assetId, quantity) => {
@@ -796,7 +881,27 @@ function advanceMonth(get: GetFn, set: SetFn) {
   // Banking: savings interest, FD maturities, loan EMIs.
   const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
   const bankResult = processBankMonth(s.bank, month, cashAfterLife, clamp);
-  const cash = Math.max(0, cashAfterLife + bankResult.cashDelta);
+
+  // Businesses: monthly profit from each owned venture.
+  const ef = businessEconomyFactor(s.assets);
+  const bizEntries: LedgerEntry[] = [];
+  let bizProfit = 0;
+  for (const b of s.businesses) {
+    const def = getBusinessDef(b.defId);
+    if (!def) continue;
+    const p = businessProfit(def, b, ef);
+    bizProfit += p;
+    bizEntries.push({
+      id: uid('led'),
+      month,
+      label: `${def.name} profit`,
+      amount: p,
+      kind: p >= 0 ? 'passive' : 'expense',
+      timestamp: now,
+    });
+  }
+
+  const cash = Math.max(0, cashAfterLife + bankResult.cashDelta + bizProfit);
 
   const bankEntries: LedgerEntry[] = bankResult.ledger.map((e) => ({
     id: uid('led'),
@@ -807,8 +912,11 @@ function advanceMonth(get: GetFn, set: SetFn) {
     timestamp: now,
   }));
 
-  const ledger = [...entries, ...bankEntries, ...s.ledger].slice(0, 40);
-  const netWorth = computeNetWorth(cash, s.holdings, s.assets) + bankEquity(bankResult.bank);
+  const ledger = [...entries, ...bizEntries, ...bankEntries, ...s.ledger].slice(0, 40);
+  const netWorth =
+    computeNetWorth(cash, s.holdings, s.assets) +
+    bankEquity(bankResult.bank) +
+    businessesEquity(s.businesses);
   const netWorthHistory = [
     ...s.netWorthHistory,
     { month, value: Math.round(netWorth) },

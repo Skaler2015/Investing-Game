@@ -35,8 +35,12 @@ phase ships live on its own.
   - Credit score (CIBIL) that rises on on-time EMIs and falls on missed ones
   - Dedicated Bank screen + dashboard quick-access; net worth now counts
     savings + deposits − loan balances
-- [ ] **Phase 3 — Businesses**: own & run ventures (revenue, staff, upgrades)
-      feeding the monthly ledger.
+- [x] **Phase 3 — Businesses**
+  - 12 buyable businesses (café → shopping mall) with monthly profit that
+    scales with the economy and feeds the monthly ledger
+  - Level upgrades, marketing boost (+revenue for a cost), and selling
+  - Business value counts toward net worth; dedicated Businesses screen +
+    dashboard quick-access
 - [ ] **Phase 4 — Real estate**: buy/rent property; rent income + upkeep +
       appreciation on the same ledger.
 - [ ] **Phase 5 — Deeper markets**: mutual funds/SIP, ETFs, bonds, REITs,

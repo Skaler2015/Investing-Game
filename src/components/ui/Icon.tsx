@@ -21,6 +21,13 @@ import {
   Scale,
   Laptop,
   Store,
+  Coffee,
+  Car,
+  UtensilsCrossed,
+  Warehouse,
+  Film,
+  Hotel,
+  Factory,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -48,6 +55,13 @@ const MAP: Record<string, LucideIcon> = {
   Scale,
   Laptop,
   Store,
+  Coffee,
+  Car,
+  UtensilsCrossed,
+  Warehouse,
+  Film,
+  Hotel,
+  Factory,
 };
 
 interface Props {

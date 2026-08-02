@@ -12,6 +12,7 @@ import { Quests } from './screens/Quests';
 import { Leaderboard } from './screens/Leaderboard';
 import { Profile } from './screens/Profile';
 import { Bank } from './screens/Bank';
+import { BusinessScreen } from './screens/Business';
 import { AuthGate } from './screens/AuthGate';
 import { CareerSelect } from './screens/CareerSelect';
 import type { ScreenId } from './types';
@@ -25,10 +26,11 @@ const SCREENS: Record<ScreenId, () => JSX.Element> = {
   leaderboard: Leaderboard,
   profile: Profile,
   bank: Bank,
+  business: BusinessScreen,
 };
 
 /** Screens that take over the full frame (no bottom nav). */
-const FULLSCREEN: ScreenId[] = ['profile', 'bank'];
+const FULLSCREEN: ScreenId[] = ['profile', 'bank', 'business'];
 
 function Splash() {
   return (

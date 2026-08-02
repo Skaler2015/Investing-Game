@@ -20,6 +20,7 @@ import { resolveLevel } from '../data/levels';
 import { getCareer } from '../data/careers';
 import { computeNetWorth } from '../engine/economy';
 import { bankEquity } from '../engine/banking';
+import { businessesEquity } from '../engine/business';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Icon } from '../components/ui/Icon';
 import { Sheet } from '../components/ui/Sheet';
@@ -55,8 +56,10 @@ export function Profile() {
   const [careerOpen, setCareerOpen] = useState(false);
 
   const bank = useGameStore((s) => s.bank);
+  const businesses = useGameStore((s) => s.businesses);
   const level = resolveLevel(player.xp);
-  const netWorth = computeNetWorth(player.cash, holdings, assets) + bankEquity(bank);
+  const netWorth =
+    computeNetWorth(player.cash, holdings, assets) + bankEquity(bank) + businessesEquity(businesses);
   const career = getCareer(player.careerId);
 
   const saveName = () => {

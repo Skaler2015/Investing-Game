@@ -227,6 +227,32 @@ export interface BankState {
   creditScore: number;
 }
 
+/** Static definition of a buyable business type. */
+export interface BusinessDef {
+  id: string;
+  name: string;
+  icon: string;
+  sector: string;
+  /** Purchase cost at level 1. */
+  cost: number;
+  /** Base monthly revenue at level 1. */
+  baseRevenue: number;
+  /** Base monthly operating cost at level 1. */
+  operatingCost: number;
+  maxLevel: number;
+  description: string;
+}
+
+/** An owned business instance. */
+export interface Business {
+  id: string;
+  defId: string;
+  level: number;
+  /** Marketing boosts revenue for an extra running cost. */
+  marketing: boolean;
+  purchasedMonth: number;
+}
+
 export interface LeaderboardEntry {
   id: string;
   name: string;
@@ -246,7 +272,8 @@ export type ScreenId =
   | 'rewards'
   | 'leaderboard'
   | 'profile'
-  | 'bank';
+  | 'bank'
+  | 'business';
 
 /** Ephemeral toast/notification surfaced to the player. */
 export interface Toast {

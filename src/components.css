@@ -849,6 +849,19 @@
   background: linear-gradient(135deg, var(--brand), var(--brand-2));
   border-color: transparent;
 }
+.sell-biz {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-faint);
+  padding: 4px;
+}
+.sell-biz:active {
+  color: var(--down);
+}
 
 /* ── Career select ─────────────────────────────────────────────────────── */
 .career-hero-ic {

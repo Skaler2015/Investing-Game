@@ -33,6 +33,7 @@ import {
   portfolioRisk,
 } from '../engine/insights';
 import { bankEquity } from '../engine/banking';
+import { businessesEquity, businessesMonthlyProfit } from '../engine/business';
 import { creditLabel } from '../data/banking';
 import type { Asset } from '../types';
 import {
@@ -57,13 +58,16 @@ export function Dashboard() {
   const netWorthHistory = useGameStore((s) => s.netWorthHistory);
   const month = useGameStore((s) => s.month);
   const bank = useGameStore((s) => s.bank);
+  const businesses = useGameStore((s) => s.businesses);
 
   const [selected, setSelected] = useState<Asset | null>(null);
 
   const stats = computePortfolioStats(holdings, assets);
   const bankNet = bankEquity(bank);
+  const bizNet = businessesEquity(businesses);
+  const bizProfit = businessesMonthlyProfit(businesses, assets);
   const loanBalance = bank.loans.reduce((sum, l) => sum + l.balance, 0);
-  const netWorth = computeNetWorth(player.cash, holdings, assets) + bankNet;
+  const netWorth = computeNetWorth(player.cash, holdings, assets) + bankNet + bizNet;
   const dailyPnl = netWorth - netWorthDayStart;
   const dailyPnlPct = netWorthDayStart > 0 ? (dailyPnl / netWorthDayStart) * 100 : 0;
   const level = resolveLevel(player.xp);
@@ -246,6 +250,20 @@ export function Dashboard() {
               Savings {formatCurrency(bank.savings)}
               {loanBalance > 0 ? ` · Loans ${formatCurrency(loanBalance)}` : ''} · CIBIL{' '}
               {bank.creditScore} ({creditLabel(bank.creditScore)})
+            </span>
+          </div>
+          <ChevronRight size={18} className="faint" />
+        </button>
+
+        {/* Businesses quick access */}
+        <button className="glass-card bank-card" onClick={() => setScreen('business')}>
+          <div className="bank-card-ic">🏢</div>
+          <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>Businesses</span>
+            <span className="faint" style={{ fontSize: 11.5 }}>
+              {businesses.length === 0
+                ? 'Build a business empire — buy your first venture'
+                : `${businesses.length} owned · ${formatCurrency(bizProfit, { sign: true })}/mo profit`}
             </span>
           </div>
           <ChevronRight size={18} className="faint" />
