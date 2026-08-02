@@ -79,10 +79,19 @@ phase ships live on its own.
     that boost daily rewards, with a dashboard banner
   - Exportable financial statement (printable HTML → Save-as-PDF)
   - Settings screen (sound, theme, export, reset, simulation notice)
-  - _Cloud cross-device accounts remain the one item needing an external
-    backend (Supabase/Firebase keys) — the AuthProvider/StorageAdapter
-    abstractions are ready for it whenever you want to wire it up._
+- [x] **Phase 9 — Cloud accounts & central saves (PHP + MySQL)**
+  - A small PHP API (`public/api/*.php`) backed by the owner's Hostinger MySQL
+    database stores every account and every player's full game snapshot
+    server-side, so progress is central and works across devices.
+  - Email/password signup + login with hashed passwords (`password_hash`),
+    token auth via an `X-Token` header, and prepared statements throughout.
+  - The client (`services/backend.ts`) probes `/api/health.php` on boot and
+    picks **server** mode when the DB is reachable, else falls back to the
+    existing **local** on-device storage — the game always works. Server saves
+    are debounced; a local cache mirrors them for offline use.
+  - One-time server setup is in `SETUP-BACKEND.md` (copy `_config.php`, set the
+    DB password).
 
-All eight phases shipped. Future ideas: cloud sync, multiplayer, spin-wheel &
-clubs/tournaments, and a real remote-config admin panel — each slots onto the
+All nine phases shipped. Future ideas: multiplayer, spin-wheel & clubs/
+tournaments, and a real remote-config admin panel — each slots onto the
 existing data-driven, service-abstracted architecture.

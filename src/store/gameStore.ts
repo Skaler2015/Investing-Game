@@ -63,8 +63,8 @@ import {
   computePortfolioStats,
   findAsset,
 } from '../engine/economy';
-import { storage } from '../services/storage';
-import { auth, type AuthUser } from '../services/auth';
+import { type AuthUser } from '../services/auth';
+import { persistence } from '../services/backend';
 import { WEEKLY_CHALLENGES } from '../data/weekly';
 import { dayKey, weekKey } from '../utils/format';
 import { uid } from '../utils/id';
@@ -75,7 +75,6 @@ import {
   DAILY_REWARD_BASE_COINS,
   DAILY_REWARD_BASE_XP,
   DAILY_REWARD_STREAK_CAP,
-  STORAGE_SNAPSHOT_KEY,
   TICKS_PER_MONTH,
   NET_WORTH_HISTORY_LIMIT,
   XP_PER_MONTH,
@@ -307,11 +306,6 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
   };
 }
 
-/** Per-account snapshot storage key. */
-function snapshotKey(userId: string): string {
-  return `${STORAGE_SNAPSHOT_KEY}:${userId}`;
-}
-
 /** Apply day/week rollovers (login streak, daily missions, weekly reset). */
 function applyRollovers(input: GameSnapshot): GameSnapshot {
   let snap = input;
@@ -343,7 +337,7 @@ type GetFn = () => GameState;
 
 /** Load (or create) the signed-in user's game and make it active. */
 async function loadGameForUser(user: AuthUser, set: SetFn, get: GetFn) {
-  const saved = await storage.get<GameSnapshot>(snapshotKey(user.id));
+  const saved = await persistence.loadSnapshot<GameSnapshot>(user.id);
   let snap: GameSnapshot = saved ? migrateSnapshot(saved) : freshSnapshot(user.name);
   snap = { ...snap, player: { ...snap.player, name: user.name } };
   snap = applyRollovers(snap);
@@ -389,7 +383,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   authChecked: false,
 
   init: async () => {
-    const user = await auth.getCurrentUser();
+    await persistence.init();
+    const user = await persistence.getCurrentUser();
     set({ authUser: user, authChecked: true });
     if (user) {
       await loadGameForUser(user, set, get);
@@ -397,20 +392,20 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   signUp: async (email, password) => {
-    const res = await auth.signUp(email, password);
+    const res = await persistence.signUp(email, password);
     if (res.ok && res.user) await loadGameForUser(res.user, set, get);
     return { ok: res.ok, message: res.message };
   },
 
   signIn: async (email, password) => {
-    const res = await auth.signIn(email, password);
+    const res = await persistence.signIn(email, password);
     if (res.ok && res.user) await loadGameForUser(res.user, set, get);
     return { ok: res.ok, message: res.message };
   },
 
   signOut: async () => {
     get().save();
-    await auth.signOut();
+    await persistence.signOut();
     set({
       ...freshSnapshot('Investor'),
       authUser: null,
@@ -456,7 +451,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       taxPaid: s.taxPaid,
       completedLessons: s.completedLessons,
     };
-    void storage.set(snapshotKey(s.authUser.id), snapshot);
+    persistence.saveSnapshot(s.authUser.id, snapshot);
   },
 
   advanceTick: () => {
@@ -1001,7 +996,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   resetGame: async () => {
     const user = get().authUser;
     if (!user) return;
-    await storage.remove(snapshotKey(user.id));
+    await persistence.removeSnapshot(user.id);
     const snap = freshSnapshot(user.name);
     set({ ...snap, currentScreen: 'dashboard', toasts: [], initialized: true });
     get().save();
@@ -1018,7 +1013,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setPlayerName: (name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    void auth.updateName(trimmed);
+    void persistence.updateName(trimmed);
     set({ player: { ...get().player, name: trimmed } });
     get().save();
   },

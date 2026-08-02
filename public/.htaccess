@@ -1,6 +1,13 @@
 # Invest Master — Hostinger (Apache / LiteSpeed) configuration
 # This file is copied into dist/ at build time and uploaded with the site.
 
+# ── Protect API includes ──────────────────────────────────────────────────
+# _config.php (DB password) and _db.php are includes only — never served or
+# hit directly over the web.
+<FilesMatch "^_.*\.php$">
+  Require all denied
+</FilesMatch>
+
 # ── Single-page-app fallback ──────────────────────────────────────────────
 # Serve index.html for any path that isn't a real file/folder.
 <IfModule mod_rewrite.c>
