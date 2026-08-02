@@ -62,6 +62,8 @@ import {
 } from '../engine/market';
 import { orderShouldFill, alertShouldFire, orderKindLabel } from '../engine/orders';
 import { pickSpinPrize } from '../data/spin';
+import { pickScratchPrize } from '../data/scratch';
+import { getInsurancePlan, bestCoverage, totalPremium } from '../data/insurance';
 import {
   computeNetWorth,
   computePortfolioStats,
@@ -151,6 +153,10 @@ interface GameSnapshot {
   goalNetWorth: number | null;
   /** Day-key of the last claimed daily spin (null = never). */
   spinLastDay: string | null;
+  /** Active insurance plan ids (see data/insurance). */
+  insurance: string[];
+  /** Day-key of the last claimed daily scratch card (null = never). */
+  scratchLastDay: string | null;
 }
 
 interface GameState extends GameSnapshot {
@@ -211,6 +217,9 @@ interface GameState extends GameSnapshot {
   removeAlert: (id: string) => void;
   setGoal: (amount: number | null) => void;
   spinWheel: () => { ok: boolean; message: string; prizeIndex?: number };
+  scratchCard: () => { ok: boolean; message: string; prizeIndex?: number };
+  buyInsurance: (id: string) => { ok: boolean; message: string };
+  cancelInsurance: (id: string) => void;
 
   // education
   completeLesson: (lessonId: string, rewardCoins: number, rewardXp: number) => void;
@@ -294,6 +303,8 @@ function freshSnapshot(name: string): GameSnapshot {
     alerts: [],
     goalNetWorth: null,
     spinLastDay: null,
+    insurance: [],
+    scratchLastDay: null,
   };
 }
 
@@ -335,6 +346,8 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
     alerts: snap.alerts ?? [],
     goalNetWorth: snap.goalNetWorth ?? null,
     spinLastDay: snap.spinLastDay ?? null,
+    insurance: snap.insurance ?? [],
+    scratchLastDay: snap.scratchLastDay ?? null,
     player: { ...snap.player, careerId: snap.player.careerId ?? null },
   };
 }
@@ -556,6 +569,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       alerts: s.alerts,
       goalNetWorth: s.goalNetWorth,
       spinLastDay: s.spinLastDay,
+      insurance: s.insurance,
+      scratchLastDay: s.scratchLastDay,
     };
     persistence.saveSnapshot(s.authUser.id, snapshot);
   },
@@ -964,6 +979,46 @@ export const useGameStore = create<GameState>((set, get) => ({
     return { ok: true, message: prize.label, prizeIndex: index };
   },
 
+  scratchCard: () => {
+    const s = get();
+    const today = dayKey();
+    if (s.scratchLastDay === today) {
+      return { ok: false, message: 'Come back tomorrow for another card' };
+    }
+    const { prize, index } = pickScratchPrize();
+    set({
+      scratchLastDay: today,
+      player: { ...s.player, coins: s.player.coins + prize.coins, xp: s.player.xp + prize.xp },
+    });
+    const bits = [prize.coins ? `+${prize.coins} coins` : '', prize.xp ? `+${prize.xp} XP` : '']
+      .filter(Boolean)
+      .join(' · ');
+    get().pushToast({ title: 'Scratch Card 🎟️', message: `You won ${prize.label}! ${bits}`, kind: 'reward' });
+    get().save();
+    return { ok: true, message: prize.label, prizeIndex: index };
+  },
+
+  buyInsurance: (id) => {
+    const s = get();
+    const plan = getInsurancePlan(id);
+    if (!plan) return { ok: false, message: 'Unknown plan' };
+    if (s.insurance.includes(id)) return { ok: false, message: 'Already covered' };
+    if (!s.player.careerId) return { ok: false, message: 'Pick a career first — premiums come from your salary' };
+    set({ insurance: [...s.insurance, id] });
+    get().pushToast({
+      title: `${plan.name} active 🛡️`,
+      message: `₹${plan.premium.toLocaleString('en-IN')}/mo · covers ${Math.round(plan.coverage * 100)}% of expense shocks`,
+      kind: 'success',
+    });
+    get().save();
+    return { ok: true, message: 'Insured' };
+  },
+
+  cancelInsurance: (id) => {
+    set({ insurance: get().insurance.filter((x) => x !== id) });
+    get().save();
+  },
+
   completeLesson: (lessonId, rewardCoins, rewardXp) => {
     const s = get();
     if (s.completedLessons.includes(lessonId)) return;
@@ -1154,11 +1209,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     const mult = season?.dailyMultiplier ?? 1;
     const coins = Math.round(DAILY_REWARD_BASE_COINS * streak * mult);
     const xp = Math.round(DAILY_REWARD_BASE_XP * streak * mult);
+    // Milestone bonuses at 7 / 30 / 100 consecutive days.
+    const MILESTONES: Record<number, number> = { 7: 500, 30: 2500, 100: 10000 };
+    const milestoneBonus = MILESTONES[s.player.loginStreak] ?? 0;
     set({
       dailyRewardClaimedDay: s.day,
       player: {
         ...s.player,
-        coins: s.player.coins + coins,
+        coins: s.player.coins + coins + milestoneBonus,
         xp: s.player.xp + xp,
       },
     });
@@ -1167,6 +1225,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       message: `+${coins} coins · +${xp} XP${mult > 1 ? ` (${season?.name} ×${mult})` : ''}`,
       kind: 'reward',
     });
+    if (milestoneBonus > 0) {
+      get().pushToast({
+        title: `🔥 ${s.player.loginStreak}-day streak milestone!`,
+        message: `Bonus +${milestoneBonus.toLocaleString('en-IN')} coins`,
+        kind: 'reward',
+      });
+    }
     get().save();
   },
 
@@ -1257,14 +1322,23 @@ function advanceMonth(get: GetFn, set: SetFn) {
   if (expenses) entries.push({ id: uid('led'), month, label: 'Living expenses', amount: -expenses, kind: 'expense', timestamp: now });
   if (incomeTax > 0) entries.push({ id: uid('led'), month, label: 'Income tax', amount: -incomeTax, kind: 'expense', timestamp: now });
 
+  // Insurance: premium each month; softens negative life events.
+  const insurancePremium = totalPremium(s.insurance);
+  const coverage = bestCoverage(s.insurance);
+
   let lifeAmt = 0;
   const life = career ? maybeLifeEvent() : null;
   if (life && salary) {
-    lifeAmt = Math.round(salary * life.salaryFraction) * (life.kind === 'expense' ? -1 : 1);
+    let amt = Math.round(salary * life.salaryFraction) * (life.kind === 'expense' ? -1 : 1);
+    if (amt < 0 && coverage > 0) amt = Math.round(amt * (1 - coverage)); // insurance absorbs part
+    lifeAmt = amt;
     entries.push({ id: uid('led'), month, label: life.label, amount: lifeAmt, kind: 'event', timestamp: now });
   }
+  if (insurancePremium > 0) {
+    entries.push({ id: uid('led'), month, label: 'Insurance premium', amount: -insurancePremium, kind: 'expense', timestamp: now });
+  }
 
-  const incomeNet = salary + passive - expenses - incomeTax + lifeAmt;
+  const incomeNet = salary + passive - expenses - incomeTax - insurancePremium + lifeAmt;
   const cashAfterLife = Math.max(0, s.player.cash + incomeNet);
 
   // Banking: savings interest, FD maturities, loan EMIs.

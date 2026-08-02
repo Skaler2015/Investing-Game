@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, PiggyBank, Landmark, Lock, CreditCard, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, PiggyBank, Landmark, Lock, CreditCard, Plus, Minus, ShieldCheck, Check } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { Icon } from '../components/ui/Icon';
 import { ProgressBar } from '../components/ui/ProgressBar';
@@ -10,12 +10,13 @@ import {
   creditLabel,
   CREDIT,
 } from '../data/banking';
+import { INSURANCE_PLANS } from '../data/insurance';
 import { emiFor, fdAccrued, loanEligibility } from '../engine/banking';
 import { getCareer } from '../data/careers';
 import type { LoanType } from '../types';
 import { formatCurrency, formatCurrencyFull } from '../utils/format';
 
-type Tab = 'savings' | 'deposits' | 'loans';
+type Tab = 'savings' | 'deposits' | 'loans' | 'insurance';
 
 export function Bank() {
   const setScreen = useGameStore((s) => s.setScreen);
@@ -65,9 +66,9 @@ export function Bank() {
         </div>
 
         <div className="seg-tabs" style={{ marginTop: 12 }}>
-          {(['savings', 'deposits', 'loans'] as Tab[]).map((t) => (
+          {(['savings', 'deposits', 'loans', 'insurance'] as Tab[]).map((t) => (
             <button key={t} className={`seg-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'savings' ? 'Savings' : t === 'deposits' ? 'Deposits' : 'Loans'}
+              {t === 'savings' ? 'Savings' : t === 'deposits' ? 'Deposits' : t === 'loans' ? 'Loans' : 'Insurance'}
             </button>
           ))}
         </div>
@@ -75,8 +76,57 @@ export function Bank() {
         {tab === 'savings' && <SavingsPanel savings={bank.savings} cash={cash} />}
         {tab === 'deposits' && <DepositsPanel />}
         {tab === 'loans' && <LoansPanel />}
+        {tab === 'insurance' && <InsurancePanel />}
       </div>
     </>
+  );
+}
+
+function InsurancePanel() {
+  const active = useGameStore((s) => s.insurance);
+  const buyInsurance = useGameStore((s) => s.buyInsurance);
+  const cancelInsurance = useGameStore((s) => s.cancelInsurance);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  return (
+    <div className="col" style={{ gap: 12, marginTop: 16 }}>
+      <p className="faint" style={{ fontSize: 12, margin: '0 4px' }}>
+        Insurance costs a small monthly premium but softens the blow when an
+        unexpected expense event hits. A core part of a safe financial plan.
+      </p>
+      {INSURANCE_PLANS.map((plan) => {
+        const on = active.includes(plan.id);
+        return (
+          <div key={plan.id} className="card card-pad col" style={{ gap: 10 }}>
+            <div className="row between">
+              <div className="row gap-8">
+                <ShieldCheck size={18} className={on ? 'up' : 'muted'} />
+                <div className="col" style={{ gap: 2 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>{plan.name}</span>
+                  <span className="faint" style={{ fontSize: 12 }}>{plan.description}</span>
+                </div>
+              </div>
+              {on && <span className="pill pill-up"><Check size={12} /> Active</span>}
+            </div>
+            <div className="row between">
+              <span className="faint mono" style={{ fontSize: 12 }}>
+                {formatCurrency(plan.premium)}/mo · covers {Math.round(plan.coverage * 100)}%
+              </span>
+              {on ? (
+                <button className="btn btn-ghost" onClick={() => { cancelInsurance(plan.id); setMsg('Cover cancelled'); }}>
+                  Cancel
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setMsg(buyInsurance(plan.id).message)}>
+                  Get covered
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {msg && <div className="info-note">{msg}</div>}
+    </div>
   );
 }
 

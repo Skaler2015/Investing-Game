@@ -189,6 +189,7 @@ export function Dashboard() {
         </motion.div>
 
         <GoalCard netWorth={netWorth} />
+        <FinancialHealthCard />
 
         {/* Seasonal event banner */}
         {season && (
@@ -530,6 +531,16 @@ function GoalCard({ netWorth }: { netWorth: number }) {
           value={value || ''}
           onChange={(e) => setValue(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
         />
+        <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+          {[
+            { label: '🚗 Car · ₹5L', v: 500000 },
+            { label: '🏠 House · ₹25L', v: 2500000 },
+            { label: '✈️ Trip · ₹2L', v: 200000 },
+            { label: '💎 ₹1 Cr', v: 10000000 },
+          ].map((p) => (
+            <button key={p.v} className="chip-btn" onClick={() => setValue(p.v)}>{p.label}</button>
+          ))}
+        </div>
         <div className="grid-2">
           <button className="btn btn-ghost btn-block" onClick={() => { setGoal(null); setEditing(false); }}>
             Clear goal
@@ -566,6 +577,53 @@ function GoalCard({ netWorth }: { netWorth: number }) {
           {reached ? '🎯 Goal reached!' : `${formatPct(pct * 100)} · ${formatCurrency(remaining)} to go`}
         </span>
       </div>
+    </div>
+  );
+}
+
+/** A simple 0–100 financial-health score from savings, mix, debt and cover. */
+function FinancialHealthCard() {
+  const bank = useGameStore((s) => s.bank);
+  const holdings = useGameStore((s) => s.holdings);
+  const assets = useGameStore((s) => s.assets);
+  const sips = useGameStore((s) => s.sips);
+  const insurance = useGameStore((s) => s.insurance);
+  const careerId = useGameStore((s) => s.player.careerId);
+
+  const career = getCareer(careerId);
+  const monthlyExpenses = career?.expenses ?? 0;
+  const salary = career?.salary ?? 0;
+  const loanBalance = bank.loans.reduce((sum, l) => sum + l.balance, 0);
+  const classes = new Set(
+    holdings.filter((h) => h.quantity > 0).map((h) => assets.find((a) => a.id === h.assetId)?.assetClass).filter(Boolean)
+  );
+
+  const checks = [
+    { ok: bank.savings >= monthlyExpenses * 3, pts: 25, tip: 'Build an emergency fund (3× monthly expenses) in savings.' },
+    { ok: classes.size >= 3, pts: 20, tip: 'Diversify — hold at least 3 different asset types.' },
+    { ok: loanBalance === 0 || loanBalance < salary * 6, pts: 20, tip: 'Keep debt low — repay high loans early.' },
+    { ok: insurance.length > 0, pts: 20, tip: 'Get insured to protect against expense shocks.' },
+    { ok: sips.length > 0, pts: 15, tip: 'Start a SIP to invest automatically every month.' },
+  ];
+  const score = checks.reduce((sum, c) => sum + (c.ok ? c.pts : 0), 0);
+  const firstGap = checks.find((c) => !c.ok);
+  const label = score >= 85 ? 'Excellent' : score >= 65 ? 'Good' : score >= 40 ? 'Fair' : 'Needs work';
+  const color = score >= 85 ? 'var(--up)' : score >= 65 ? '#3b82f6' : score >= 40 ? 'var(--gold)' : 'var(--down)';
+
+  return (
+    <div className="card card-pad col" style={{ gap: 10, marginTop: 12 }}>
+      <div className="row between">
+        <span style={{ fontWeight: 700, fontSize: 13.5 }}>💪 Financial Health</span>
+        <span style={{ fontWeight: 800, fontSize: 13, color }}>{label}</span>
+      </div>
+      <div className="row gap-12" style={{ alignItems: 'baseline' }}>
+        <span className="mono" style={{ fontSize: 26, fontWeight: 800, color }}>{score}</span>
+        <span className="faint" style={{ fontSize: 11 }}>/ 100</span>
+      </div>
+      <ProgressBar value={score / 100} gradient={`linear-gradient(90deg, var(--down), var(--gold), var(--up))`} />
+      {firstGap && (
+        <span className="faint" style={{ fontSize: 11.5 }}>Next step: {firstGap.tip}</span>
+      )}
     </div>
   );
 }

@@ -1680,3 +1680,25 @@
   width: 100%;
   border-style: dashed;
 }
+
+/* Daily scratch card */
+.scratch-face {
+  width: 100%;
+  height: 92px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: repeating-linear-gradient(45deg, #b0873a, #b0873a 10px, #c99a48 10px, #c99a48 20px);
+  border: 1px solid var(--border);
+  color: #2a1c05;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.scratch-face.used {
+  background: var(--surface);
+  color: var(--text);
+  cursor: default;
+}
+.scratch-hint { font-weight: 800; font-size: 14px; letter-spacing: 0.02em; }
+.scratch-prize { font-weight: 800; font-size: 18px; }

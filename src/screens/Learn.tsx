@@ -4,12 +4,15 @@ import { useGameStore } from '../store/gameStore';
 import { Icon } from '../components/ui/Icon';
 import { Sheet } from '../components/ui/Sheet';
 import { LESSONS } from '../data/lessons';
+import { GLOSSARY } from '../data/glossary';
 import type { Lesson } from '../types';
 
 export function Learn() {
   const setScreen = useGameStore((s) => s.setScreen);
   const completed = useGameStore((s) => s.completedLessons);
   const [active, setActive] = useState<Lesson | null>(null);
+  const [tab, setTab] = useState<'lessons' | 'glossary'>('lessons');
+  const [openTerm, setOpenTerm] = useState<string | null>(null);
 
   const done = LESSONS.filter((l) => completed.includes(l.id)).length;
 
@@ -33,25 +36,59 @@ export function Learn() {
           <span className="pill pill-up">{done}/{LESSONS.length}</span>
         </div>
 
-        <div className="col" style={{ gap: 10, marginTop: 14 }}>
-          {LESSONS.map((l) => {
-            const isDone = completed.includes(l.id);
-            return (
-              <button key={l.id} className="glass-card row gap-12" onClick={() => setActive(l)} style={{ textAlign: 'left' }}>
-                <div className="career-ic"><Icon name={l.icon} size={20} /></div>
-                <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>{l.title}</span>
-                  <span className="faint" style={{ fontSize: 11.5 }}>{l.summary}</span>
-                </div>
-                {isDone ? (
-                  <CheckCircle2 size={18} style={{ color: 'var(--up)' }} />
-                ) : (
-                  <div className="reward-tag"><Coins size={12} /> {l.rewardCoins}</div>
-                )}
-              </button>
-            );
-          })}
+        <div className="seg-tabs" style={{ marginTop: 12 }}>
+          <button className={`seg-tab ${tab === 'lessons' ? 'active' : ''}`} onClick={() => setTab('lessons')}>Lessons</button>
+          <button className={`seg-tab ${tab === 'glossary' ? 'active' : ''}`} onClick={() => setTab('glossary')}>Glossary</button>
         </div>
+
+        {tab === 'lessons' && (
+          <div className="col" style={{ gap: 10, marginTop: 14 }}>
+            {LESSONS.map((l) => {
+              const isDone = completed.includes(l.id);
+              return (
+                <button key={l.id} className="glass-card row gap-12" onClick={() => setActive(l)} style={{ textAlign: 'left' }}>
+                  <div className="career-ic"><Icon name={l.icon} size={20} /></div>
+                  <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{l.title}</span>
+                    <span className="faint" style={{ fontSize: 11.5 }}>{l.summary}</span>
+                  </div>
+                  {isDone ? (
+                    <CheckCircle2 size={18} style={{ color: 'var(--up)' }} />
+                  ) : (
+                    <div className="reward-tag"><Coins size={12} /> {l.rewardCoins}</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {tab === 'glossary' && (
+          <div className="col" style={{ gap: 8, marginTop: 14 }}>
+            <p className="faint" style={{ fontSize: 12, margin: '0 4px' }}>
+              Har financial term ka aasan matlab. Tap to expand.
+            </p>
+            {GLOSSARY.map((g) => {
+              const open = openTerm === g.term;
+              return (
+                <button
+                  key={g.term}
+                  className="card card-pad col"
+                  style={{ gap: 4, textAlign: 'left', alignItems: 'stretch' }}
+                  onClick={() => setOpenTerm(open ? null : g.term)}
+                >
+                  <div className="row between">
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{g.term}</span>
+                    <span className="faint" style={{ fontSize: 11.5 }}>{g.short}</span>
+                  </div>
+                  {open && (
+                    <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, marginTop: 4 }}>{g.detail}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <LessonSheet key={active?.id ?? 'none'} lesson={active} onClose={() => setActive(null)} />

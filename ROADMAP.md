@@ -105,6 +105,20 @@ phase ships live on its own.
   - All new state lives in the snapshot (migration-safe) so it syncs to the
     cloud database automatically.
 
-All ten phases shipped. Future ideas: multiplayer, clubs/tournaments, and a
-richer remote-config admin panel — each slots onto the existing data-driven,
-service-abstracted architecture.
+- [x] **Phase 11 — Wealth & life expansion**
+  - **Insurance** (health / life) in the Bank: a monthly premium that absorbs
+    part of negative life events, woven into the monthly cash-flow engine.
+  - **Portfolio Analytics** tab: cost basis, current value, realised vs
+    unrealised P&L, overall return, and best / weakest performer.
+  - **Financial Health** score (0–100) on the dashboard from emergency fund,
+    diversification, debt, cover and SIPs, with the next best step.
+  - **Daily Scratch Card** (a second free daily reward beside the spin) and
+    **streak milestone** bonuses at 7 / 30 / 100 days.
+  - **Glossary** of financial terms in Learn & Earn; **life-goal presets**
+    (car / house / trip / ₹1 Cr) on the goal card.
+  - All new state is snapshot-persisted and migration-safe, syncing to the
+    cloud database automatically.
+
+All eleven phases shipped. Future ideas: real cross-player leaderboards,
+friends, clubs/tournaments, and a richer remote-config admin panel — each
+slots onto the existing data-driven, service-abstracted architecture.

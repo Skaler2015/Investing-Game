@@ -8,6 +8,7 @@ import { useGameStore, getMissionViews } from '../store/gameStore';
 import { ACHIEVEMENTS, TIER_COLOR } from '../data/achievements';
 import { WEEKLY_CHALLENGES } from '../data/weekly';
 import { SPIN_PRIZES } from '../data/spin';
+import { SCRATCH_PRIZES } from '../data/scratch';
 import { DAILY_REWARD_BASE_COINS, DAILY_REWARD_STREAK_CAP } from '../store/constants';
 import { formatCompactNumber, formatCurrency } from '../utils/format';
 
@@ -105,7 +106,10 @@ function RewardsPanel() {
 
   return (
     <div className="col" style={{ gap: 14, marginTop: 16 }}>
-      <SpinCard />
+      <div className="grid-2">
+        <SpinCard />
+        <ScratchCard />
+      </div>
 
       {/* Daily login */}
       <div className="card card-pad col" style={{ gap: 12 }}>
@@ -249,6 +253,41 @@ function SpinCard() {
         {spinning ? 'Spinning…' : available ? 'Spin the wheel' : 'Come back tomorrow'}
       </button>
       {result && <span className="faint" style={{ fontSize: 13, textAlign: 'center' }}>{result}</span>}
+    </div>
+  );
+}
+
+function ScratchCard() {
+  const scratchLastDay = useGameStore((s) => s.scratchLastDay);
+  const day = useGameStore((s) => s.day);
+  const scratch = useGameStore((s) => s.scratchCard);
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const available = scratchLastDay !== day;
+
+  const doScratch = () => {
+    if (!available) return;
+    const r = scratch();
+    if (r.ok && r.prizeIndex != null) setRevealed(SCRATCH_PRIZES[r.prizeIndex].label);
+  };
+
+  return (
+    <div className="card card-pad col" style={{ gap: 12, alignItems: 'center' }}>
+      <div className="row between" style={{ width: '100%' }}>
+        <div className="row gap-8">
+          <span style={{ fontSize: 18 }}>🎟️</span>
+          <span style={{ fontWeight: 800, fontSize: 15 }}>Scratch Card</span>
+        </div>
+      </div>
+      <div className={`scratch-face ${!available ? 'used' : ''}`} onClick={doScratch} role="button" tabIndex={0}>
+        {available ? (
+          <span className="scratch-hint">Tap to scratch</span>
+        ) : (
+          <span className="scratch-prize">{revealed ?? 'Claimed'}</span>
+        )}
+      </div>
+      <button className="btn btn-primary btn-block" onClick={doScratch} disabled={!available}>
+        {available ? 'Scratch to reveal' : 'Back tomorrow'}
+      </button>
     </div>
   );
 }

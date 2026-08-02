@@ -20,13 +20,14 @@ import {
   relativeTime,
 } from '../utils/format';
 
-type Tab = 'holdings' | 'allocation' | 'history';
+type Tab = 'holdings' | 'allocation' | 'analytics' | 'history';
 
 export function Portfolio() {
   const assets = useGameStore((s) => s.assets);
   const holdings = useGameStore((s) => s.holdings);
   const trades = useGameStore((s) => s.trades);
   const sips = useGameStore((s) => s.sips);
+  const player = useGameStore((s) => s.player);
   const cancelSIP = useGameStore((s) => s.cancelSIP);
   const [tab, setTab] = useState<Tab>('holdings');
   const [selected, setSelected] = useState<Asset | null>(null);
@@ -95,7 +96,7 @@ export function Portfolio() {
 
         {/* Tabs */}
         <div className="seg-tabs" style={{ marginTop: 14 }}>
-          {(['holdings', 'allocation', 'history'] as Tab[]).map((t) => (
+          {(['holdings', 'allocation', 'analytics', 'history'] as Tab[]).map((t) => (
             <button
               key={t}
               className={`seg-tab ${tab === t ? 'active' : ''}`}
@@ -105,6 +106,16 @@ export function Portfolio() {
             </button>
           ))}
         </div>
+
+        {tab === 'analytics' && (
+          <AnalyticsPanel
+            assets={assets}
+            activeHoldings={activeHoldings}
+            investedValue={stats.investedValue}
+            unrealizedPnl={stats.unrealizedPnl}
+            realizedPnl={player.realizedPnl}
+          />
+        )}
 
         {tab === 'holdings' && (
           <div className="col" style={{ gap: 10, marginTop: 14 }}>
@@ -247,6 +258,92 @@ function EmptyState({ text }: { text: string }) {
       <span className="muted" style={{ fontSize: 13, textAlign: 'center', maxWidth: 260 }}>
         {text}
       </span>
+    </div>
+  );
+}
+
+/** Deeper portfolio analytics: returns, best/worst holding, invested cost. */
+function AnalyticsPanel({
+  assets,
+  activeHoldings,
+  investedValue,
+  unrealizedPnl,
+  realizedPnl,
+}: {
+  assets: Asset[];
+  activeHoldings: { assetId: string; quantity: number; avgCost: number }[];
+  investedValue: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
+}) {
+  const costBasis = activeHoldings.reduce((sum, h) => sum + h.avgCost * h.quantity, 0);
+  const totalReturnPct = costBasis > 0 ? (unrealizedPnl / costBasis) * 100 : 0;
+
+  const ranked = activeHoldings
+    .map((h) => {
+      const asset = findAsset(assets, h.assetId);
+      const price = asset?.price ?? h.avgCost;
+      const pnl = (price - h.avgCost) * h.quantity;
+      const pnlPct = h.avgCost > 0 ? ((price - h.avgCost) / h.avgCost) * 100 : 0;
+      return { name: asset?.name ?? h.assetId, symbol: asset?.symbol ?? '', pnl, pnlPct };
+    })
+    .sort((a, b) => b.pnlPct - a.pnlPct);
+  const best = ranked[0];
+  const worst = ranked.length > 1 ? ranked[ranked.length - 1] : undefined;
+
+  if (activeHoldings.length === 0) {
+    return (
+      <div style={{ marginTop: 14 }}>
+        <EmptyState text="Buy a few assets to unlock your performance analytics." />
+      </div>
+    );
+  }
+
+  const Stat = ({ label, value, cls }: { label: string; value: string; cls?: string }) => (
+    <div className="mini-stat">
+      <span className="faint" style={{ fontSize: 11 }}>{label}</span>
+      <span className={`mono ${cls ?? ''}`} style={{ fontWeight: 700 }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="col" style={{ gap: 12, marginTop: 14 }}>
+      <div className="grid-2">
+        <Stat label="Invested (cost)" value={formatCurrency(costBasis)} />
+        <Stat label="Current value" value={formatCurrency(investedValue)} />
+        <Stat label="Unrealised P&L" value={formatCurrency(unrealizedPnl, { sign: true })} cls={unrealizedPnl >= 0 ? 'up' : 'down'} />
+        <Stat label="Realised P&L" value={formatCurrency(realizedPnl, { sign: true })} cls={realizedPnl >= 0 ? 'up' : 'down'} />
+      </div>
+
+      <div className="card card-pad col" style={{ gap: 6 }}>
+        <span className="faint" style={{ fontSize: 11 }}>Overall return on holdings</span>
+        <span className={`mono ${totalReturnPct >= 0 ? 'up' : 'down'}`} style={{ fontSize: 24, fontWeight: 800 }}>
+          {formatPct(totalReturnPct, { sign: true })}
+        </span>
+      </div>
+
+      {best && (
+        <div className="card card-pad row between">
+          <div className="col" style={{ gap: 2 }}>
+            <span className="faint" style={{ fontSize: 11 }}>🏆 Best performer</span>
+            <span style={{ fontWeight: 700, fontSize: 14 }} className="truncate">{best.name}</span>
+          </div>
+          <span className={`mono ${best.pnlPct >= 0 ? 'up' : 'down'}`} style={{ fontWeight: 800 }}>
+            {formatPct(best.pnlPct, { sign: true })}
+          </span>
+        </div>
+      )}
+      {worst && (
+        <div className="card card-pad row between">
+          <div className="col" style={{ gap: 2 }}>
+            <span className="faint" style={{ fontSize: 11 }}>📉 Weakest performer</span>
+            <span style={{ fontWeight: 700, fontSize: 14 }} className="truncate">{worst.name}</span>
+          </div>
+          <span className={`mono ${worst.pnlPct >= 0 ? 'up' : 'down'}`} style={{ fontWeight: 800 }}>
+            {formatPct(worst.pnlPct, { sign: true })}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
