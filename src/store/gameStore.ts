@@ -26,7 +26,7 @@ import {
   findAsset,
 } from '../engine/economy';
 import { storage } from '../services/storage';
-import { auth } from '../services/auth';
+import { auth, type AuthUser } from '../services/auth';
 import { WEEKLY_CHALLENGES } from '../data/weekly';
 import { dayKey, weekKey } from '../utils/format';
 import { uid } from '../utils/id';
@@ -81,9 +81,14 @@ interface GameState extends GameSnapshot {
   currentScreen: ScreenId;
   toasts: Toast[];
   initialized: boolean;
+  authUser: AuthUser | null;
+  authChecked: boolean;
 
   // lifecycle
   init: () => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ ok: boolean; message: string }>;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; message: string }>;
+  signOut: () => Promise<void>;
   advanceTick: () => void;
   save: () => void;
   resetGame: () => Promise<void>;
@@ -162,6 +167,50 @@ function freshSnapshot(name: string): GameSnapshot {
   };
 }
 
+/** Per-account snapshot storage key. */
+function snapshotKey(userId: string): string {
+  return `${STORAGE_SNAPSHOT_KEY}:${userId}`;
+}
+
+/** Apply day/week rollovers (login streak, daily missions, weekly reset). */
+function applyRollovers(input: GameSnapshot): GameSnapshot {
+  let snap = input;
+  const today = dayKey();
+  if (snap.day !== today) {
+    const wasYesterday = snap.player.lastLoginDay === yesterdayKey(today);
+    const streak = wasYesterday ? snap.player.loginStreak + 1 : 1;
+    const netWorth = computeNetWorth(snap.player.cash, snap.holdings, snap.assets);
+    snap = {
+      ...snap,
+      day: today,
+      netWorthDayStart: netWorth,
+      missionDefIds: selectDailyMissions(today).map((m) => m.id),
+      claimedMissions: [],
+      dailyCounters: emptyDailyCounters(),
+      dailyRewardClaimedDay: null,
+      player: { ...snap.player, lastLoginDay: today, loginStreak: streak },
+    };
+  }
+  const thisWeek = weekKey();
+  if (snap.week !== thisWeek) {
+    snap = { ...snap, week: thisWeek, weeklyTrades: 0, weeklyProfit: 0, claimedWeekly: [] };
+  }
+  return snap;
+}
+
+type SetFn = (partial: Partial<GameState>) => void;
+type GetFn = () => GameState;
+
+/** Load (or create) the signed-in user's game and make it active. */
+async function loadGameForUser(user: AuthUser, set: SetFn, get: GetFn) {
+  const saved = await storage.get<GameSnapshot>(snapshotKey(user.id));
+  let snap: GameSnapshot = saved ?? freshSnapshot(user.name);
+  snap = { ...snap, player: { ...snap.player, name: user.name } };
+  snap = applyRollovers(snap);
+  set({ ...snap, authUser: user, currentScreen: 'dashboard', toasts: [], initialized: true });
+  get().save();
+}
+
 /** Build the achievement context from current state. */
 function achievementContext(s: GameState): AchievementContext {
   const netWorth = computeNetWorth(s.player.cash, s.holdings, s.assets);
@@ -182,54 +231,49 @@ function achievementContext(s: GameState): AchievementContext {
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
-  ...freshSnapshot('Guest Investor'),
+  ...freshSnapshot('Investor'),
   currentScreen: 'dashboard',
   toasts: [],
   initialized: false,
+  authUser: null,
+  authChecked: false,
 
   init: async () => {
-    const user = await auth.signInAsGuest();
-    const saved = await storage.get<GameSnapshot>(STORAGE_SNAPSHOT_KEY);
-    let snap: GameSnapshot = saved ?? freshSnapshot(user.name);
-
-    // Keep the player's display name in sync with the auth identity.
-    snap = { ...snap, player: { ...snap.player, name: user.name } };
-
-    const today = dayKey();
-    if (snap.day !== today) {
-      // Roll over to a new day: streak, missions, counters, P/L baseline.
-      const wasYesterday = snap.player.lastLoginDay === yesterdayKey(today);
-      const streak = wasYesterday ? snap.player.loginStreak + 1 : 1;
-      const netWorth = computeNetWorth(snap.player.cash, snap.holdings, snap.assets);
-      snap = {
-        ...snap,
-        day: today,
-        netWorthDayStart: netWorth,
-        missionDefIds: selectDailyMissions(today).map((m) => m.id),
-        claimedMissions: [],
-        dailyCounters: emptyDailyCounters(),
-        dailyRewardClaimedDay: null,
-        player: { ...snap.player, lastLoginDay: today, loginStreak: streak },
-      };
+    const user = await auth.getCurrentUser();
+    set({ authUser: user, authChecked: true });
+    if (user) {
+      await loadGameForUser(user, set, get);
     }
+  },
 
-    const thisWeek = weekKey();
-    if (snap.week !== thisWeek) {
-      snap = {
-        ...snap,
-        week: thisWeek,
-        weeklyTrades: 0,
-        weeklyProfit: 0,
-        claimedWeekly: [],
-      };
-    }
+  signUp: async (email, password) => {
+    const res = await auth.signUp(email, password);
+    if (res.ok && res.user) await loadGameForUser(res.user, set, get);
+    return { ok: res.ok, message: res.message };
+  },
 
-    set({ ...snap, initialized: true });
+  signIn: async (email, password) => {
+    const res = await auth.signIn(email, password);
+    if (res.ok && res.user) await loadGameForUser(res.user, set, get);
+    return { ok: res.ok, message: res.message };
+  },
+
+  signOut: async () => {
     get().save();
+    await auth.signOut();
+    set({
+      ...freshSnapshot('Investor'),
+      authUser: null,
+      authChecked: true,
+      initialized: false,
+      currentScreen: 'dashboard',
+      toasts: [],
+    });
   },
 
   save: () => {
     const s = get();
+    if (!s.authUser) return;
     const snapshot: GameSnapshot = {
       player: s.player,
       assets: s.assets,
@@ -251,7 +295,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       weeklyProfit: s.weeklyProfit,
       claimedWeekly: s.claimedWeekly,
     };
-    void storage.set(STORAGE_SNAPSHOT_KEY, snapshot);
+    void storage.set(snapshotKey(s.authUser.id), snapshot);
   },
 
   advanceTick: () => {
@@ -496,9 +540,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   resetGame: async () => {
-    await storage.remove(STORAGE_SNAPSHOT_KEY);
-    const user = await auth.getCurrentUser();
-    const snap = freshSnapshot(user?.name ?? 'Guest Investor');
+    const user = get().authUser;
+    if (!user) return;
+    await storage.remove(snapshotKey(user.id));
+    const snap = freshSnapshot(user.name);
     set({ ...snap, currentScreen: 'dashboard', toasts: [], initialized: true });
     get().save();
     get().pushToast({ title: 'New game started', kind: 'info' });

@@ -12,6 +12,8 @@ import {
   RotateCcw,
   Sparkles,
   ShieldCheck,
+  LogOut,
+  Mail,
 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { resolveLevel } from '../data/levels';
@@ -39,6 +41,8 @@ export function Profile() {
   const setScreen = useGameStore((s) => s.setScreen);
   const setPlayerName = useGameStore((s) => s.setPlayerName);
   const resetGame = useGameStore((s) => s.resetGame);
+  const signOut = useGameStore((s) => s.signOut);
+  const authUser = useGameStore((s) => s.authUser);
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(player.name);
@@ -86,6 +90,11 @@ export function Profile() {
               <span style={{ fontSize: 20, fontWeight: 800 }}>{player.name}</span>
               <Pencil size={15} className="faint" />
             </button>
+          )}
+          {authUser?.email && (
+            <span className="row gap-8 faint" style={{ fontSize: 12 }}>
+              <Mail size={13} /> {authUser.email}
+            </span>
           )}
           <span className="pill" style={{ background: 'var(--surface-2)' }}>
             Lv {level.level} · {level.title}
@@ -190,6 +199,14 @@ export function Profile() {
               <RotateCcw size={16} /> Reset Game
             </button>
           )}
+
+          <button
+            className="btn btn-ghost btn-block"
+            style={{ marginTop: 10, color: 'var(--down)' }}
+            onClick={() => void signOut()}
+          >
+            <LogOut size={16} /> Log Out
+          </button>
         </div>
       </div>
     </>
