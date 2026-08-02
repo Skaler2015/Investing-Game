@@ -122,7 +122,15 @@ export function Portfolio() {
             {activeHoldings.length === 0 && (
               <EmptyState text="You don't own any assets yet. Head to the Market to start investing." />
             )}
-            {activeHoldings.map((h) => {
+            {[...activeHoldings]
+              .sort((a, b) => {
+                const pa = findAsset(assets, a.assetId);
+                const pb = findAsset(assets, b.assetId);
+                const pctA = pa && a.avgCost > 0 ? (pa.price - a.avgCost) / a.avgCost : 0;
+                const pctB = pb && b.avgCost > 0 ? (pb.price - b.avgCost) / b.avgCost : 0;
+                return pctB - pctA; // highest profit % first
+              })
+              .map((h) => {
               const asset = findAsset(assets, h.assetId);
               if (!asset) return null;
               const value = asset.price * h.quantity;
