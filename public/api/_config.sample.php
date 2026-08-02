@@ -15,4 +15,10 @@ return [
   'db'   => 'u246829578_Invest',    // your database name
   'user' => 'u246829578_Invest',    // your database user
   'pass' => 'YOUR_DB_PASSWORD_HERE', // <-- set this to your MySQL password
+
+  // ── Admin panel login (for /admin) ──────────────────────────────────────
+  // These protect the owner dashboard at  https://invest.playb.in/admin/
+  // Change them to anything you like; they live only here on the server.
+  'admin_user' => 'admin',
+  'admin_pass' => 'CHANGE_THIS_ADMIN_PASSWORD',
 ];
