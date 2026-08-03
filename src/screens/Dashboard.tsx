@@ -21,6 +21,7 @@ import { AssetSheet } from '../components/game/AssetSheet';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Sparkline } from '../components/ui/Sparkline';
 import { Icon } from '../components/ui/Icon';
+import { AnimatedNumber } from '../components/ui/AnimatedNumber';
 import { useGameStore } from '../store/gameStore';
 import { resolveLevel } from '../data/levels';
 import { getCareer } from '../data/careers';
@@ -149,7 +150,7 @@ export function Dashboard() {
           </span>
           <div className="row gap-8" style={{ alignItems: 'baseline', marginTop: 4 }}>
             <span className="mono" style={{ fontSize: 32, fontWeight: 800 }}>
-              {formatCurrencyFull(netWorth)}
+              <AnimatedNumber value={netWorth} format={formatCurrencyFull} />
             </span>
           </div>
           <div className="row gap-8" style={{ marginTop: 6 }}>
@@ -190,6 +191,7 @@ export function Dashboard() {
 
         <GoalCard netWorth={netWorth} />
         <FinancialHealthCard />
+        <ScoresStrip />
 
         {/* Seasonal event banner */}
         {season && (
@@ -624,6 +626,43 @@ function FinancialHealthCard() {
       {firstGap && (
         <span className="faint" style={{ fontSize: 11.5 }}>Next step: {firstGap.tip}</span>
       )}
+    </div>
+  );
+}
+
+/** Compact "Your Scores" card: Risk, Diversification and Credit at a glance. */
+function ScoresStrip() {
+  const holdings = useGameStore((s) => s.holdings);
+  const assets = useGameStore((s) => s.assets);
+  const bank = useGameStore((s) => s.bank);
+
+  const risk = portfolioRisk(holdings, assets);
+  const div = diversificationScore(holdings, assets);
+  const credit = bank.creditScore;
+
+  const riskColor = risk.tone === 'down' ? 'var(--down)' : risk.tone === 'up' ? 'var(--up)' : 'var(--gold)';
+  const divColor = div >= 67 ? 'var(--up)' : div >= 34 ? 'var(--gold)' : 'var(--down)';
+  const creditColor = credit >= 720 ? 'var(--up)' : credit >= 550 ? 'var(--gold)' : 'var(--down)';
+
+  const Item = ({ label, value, sub, pct, color }: {
+    label: string; value: string; sub: string; pct: number; color: string;
+  }) => (
+    <div className="col" style={{ gap: 6, minWidth: 0 }}>
+      <span className="faint" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+      <span className="mono" style={{ fontSize: 22, fontWeight: 800, color, lineHeight: 1 }}>{value}</span>
+      <div className="score-track"><div className="score-fill" style={{ width: `${Math.max(4, Math.min(100, pct))}%`, background: color }} /></div>
+      <span className="faint truncate" style={{ fontSize: 10.5 }}>{sub}</span>
+    </div>
+  );
+
+  return (
+    <div className="card card-pad rise-in" style={{ marginTop: 12 }}>
+      <span style={{ fontWeight: 700, fontSize: 13.5 }}>📊 Your Scores</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 12 }}>
+        <Item label="Risk" value={`${risk.score}`} sub={risk.label} pct={risk.score} color={riskColor} />
+        <Item label="Diversify" value={`${div}%`} sub={div >= 67 ? 'Well spread' : div >= 34 ? 'Moderate' : 'Concentrated'} pct={div} color={divColor} />
+        <Item label="Credit" value={`${credit}`} sub={creditLabel(credit)} pct={((credit - 300) / 600) * 100} color={creditColor} />
+      </div>
     </div>
   );
 }
