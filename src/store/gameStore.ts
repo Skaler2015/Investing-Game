@@ -381,6 +381,53 @@ function applyRollovers(input: GameSnapshot): GameSnapshot {
 type SetFn = (partial: Partial<GameState>) => void;
 type GetFn = () => GameState;
 
+/** Apply server-side extras after load: admin gifts + the owner announcement. */
+async function applyServerExtras(get: GetFn, set: SetFn) {
+  try {
+    const grants = await persistence.fetchGrants();
+    if (grants && grants.length) {
+      let coins = 0;
+      let xp = 0;
+      for (const g of grants) {
+        coins += g.coins;
+        xp += g.xp;
+      }
+      if (coins || xp) {
+        const s = get();
+        set({ player: { ...s.player, coins: s.player.coins + coins, xp: s.player.xp + xp } });
+        const bits = [coins ? `+${coins} coins` : '', xp ? `+${xp} XP` : ''].filter(Boolean).join(' · ');
+        get().pushToast({ title: '🎁 Gift from the team!', message: bits, kind: 'reward' });
+        get().save();
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  try {
+    const ann = await persistence.fetchAnnouncement();
+    if (ann && ann.id) {
+      const key = 'invest-master:seen-announcement';
+      let seen = '';
+      try {
+        seen = localStorage.getItem(key) ?? '';
+      } catch {
+        /* ignore */
+      }
+      if (seen !== ann.id) {
+        try {
+          localStorage.setItem(key, ann.id);
+        } catch {
+          /* ignore */
+        }
+        get().pushToast({ title: ann.title || '📢 Announcement', message: ann.body, kind: 'event' });
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+}
+
 /** Load (or create) the signed-in user's game and make it active. */
 async function loadGameForUser(user: AuthUser, set: SetFn, get: GetFn) {
   const saved = await persistence.loadSnapshot<GameSnapshot>(user.id);
@@ -502,18 +549,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ authUser: user, authChecked: true });
     if (user) {
       await loadGameForUser(user, set, get);
+      void applyServerExtras(get, set);
     }
   },
 
   signUp: async (email, password) => {
     const res = await persistence.signUp(email, password);
-    if (res.ok && res.user) await loadGameForUser(res.user, set, get);
+    if (res.ok && res.user) {
+      await loadGameForUser(res.user, set, get);
+      void applyServerExtras(get, set);
+    }
     return { ok: res.ok, message: res.message };
   },
 
   signIn: async (email, password) => {
     const res = await persistence.signIn(email, password);
-    if (res.ok && res.user) await loadGameForUser(res.user, set, get);
+    if (res.ok && res.user) {
+      await loadGameForUser(res.user, set, get);
+      void applyServerExtras(get, set);
+    }
     return { ok: res.ok, message: res.message };
   },
 

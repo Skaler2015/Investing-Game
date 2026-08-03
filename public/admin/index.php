@@ -70,6 +70,61 @@ if (isset($_GET['logout'])) {
 
 $authed = !empty($_SESSION['admin']);
 
+// ---- admin power-tool actions (authed POST) --------------------------------
+$flash = $_SESSION['flash'] ?? null;
+unset($_SESSION['flash']);
+
+if ($authed && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['admin_action'])) {
+  $pdo = pdo_connect($cfg);
+  if ($pdo) {
+    // Ensure the tables the game API also manages exist.
+    $pdo->exec('CREATE TABLE IF NOT EXISTS settings (k VARCHAR(64) NOT NULL PRIMARY KEY, v TEXT NOT NULL, updated_at INT NOT NULL DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS grants (id VARCHAR(48) NOT NULL PRIMARY KEY, user_id VARCHAR(48) NOT NULL, coins INT NOT NULL DEFAULT 0, xp INT NOT NULL DEFAULT 0, reason VARCHAR(200) NOT NULL DEFAULT "", created_at INT NOT NULL DEFAULT 0, claimed_at INT NULL, INDEX (user_id, claimed_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+    $act = (string)$_POST['admin_action'];
+    if ($act === 'broadcast') {
+      $title = trim((string)($_POST['title'] ?? ''));
+      $btext = trim((string)($_POST['body'] ?? ''));
+      if ($title !== '' || $btext !== '') {
+        $ann = json_encode([
+          'id'    => substr(md5(uniqid('', true)), 0, 10),
+          'title' => mb_substr($title, 0, 120),
+          'body'  => mb_substr($btext, 0, 400),
+          'ts'    => time(),
+        ]);
+        $st = $pdo->prepare('INSERT INTO settings (k, v, updated_at) VALUES ("announcement", ?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v), updated_at = VALUES(updated_at)');
+        $st->execute([$ann, time()]);
+        $_SESSION['flash'] = 'Announcement broadcast to all players.';
+      } else {
+        $_SESSION['flash'] = 'Enter a title or message to broadcast.';
+      }
+    } elseif ($act === 'clear_ann') {
+      $pdo->prepare('DELETE FROM settings WHERE k = "announcement"')->execute();
+      $_SESSION['flash'] = 'Announcement cleared.';
+    } elseif ($act === 'grant') {
+      $email = strtolower(trim((string)($_POST['email'] ?? '')));
+      $coins = (int)($_POST['coins'] ?? 0);
+      $xp    = (int)($_POST['xp'] ?? 0);
+      $reason = trim((string)($_POST['reason'] ?? '')) ?: 'Gift from the team';
+      $sel = $pdo->prepare('SELECT id, name FROM users WHERE email = ? LIMIT 1');
+      $sel->execute([$email]);
+      $urow = $sel->fetch();
+      if (!$urow) {
+        $_SESSION['flash'] = 'No user found with that email.';
+      } elseif ($coins === 0 && $xp === 0) {
+        $_SESSION['flash'] = 'Enter coins or XP to grant.';
+      } else {
+        $gid = substr(md5(uniqid('', true)), 0, 20);
+        $ins = $pdo->prepare('INSERT INTO grants (id, user_id, coins, xp, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+        $ins->execute([$gid, $urow['id'], $coins, $xp, mb_substr($reason, 0, 200), time()]);
+        $_SESSION['flash'] = "Granted {$coins} coins / {$xp} XP to {$urow['name']} — applied next time they open the game.";
+      }
+    }
+  }
+  header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+  exit;
+}
+
 // ---- view snapshot JSON (authed only) --------------------------------------
 if ($authed && isset($_GET['view'])) {
   header('Content-Type: application/json; charset=utf-8');
@@ -127,6 +182,17 @@ if ($authed && isset($_GET['view'])) {
           margin: 16px 0; font-size: 14px; }
   .search { padding: 9px 12px; border-radius: 10px; border: 1px solid #2b3a5e; background: #0d1428; color: #e7ecf7;
             font-size: 14px; min-width: 220px; }
+  .ops { background:#141b31; border:1px solid #24304f; border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .ops h3 { margin:0 0 2px; font-size:15px; }
+  .opsf { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2b3a5e; background:#0d1428; color:#e7ecf7; font-size:14px; font-family:inherit; }
+  .ops textarea.opsf { resize:vertical; }
+  .ops .row2 { display:flex; gap:8px; }
+  .ops .row2 > * { flex:1; }
+  .ops button { padding:10px 14px; border:none; border-radius:10px; cursor:pointer; font-weight:700; font-size:14px;
+                background:linear-gradient(135deg,#3b82f6,#22c55e); color:#fff; }
+  .ops button.ghost { background:#1c2b1c; color:#9aa6c0; border:1px solid #2b3a5e; flex:0 0 auto; }
+  .ann-cur { font-size:12.5px; color:#ffe08a; background:#3a2f16; border:1px solid #6b5626; border-radius:10px; padding:8px 10px; }
+  .section-label { font-weight:700; font-size:15px; margin:6px 0 10px; }
 </style>
 </head>
 <body>
@@ -166,6 +232,21 @@ if ($authed && isset($_GET['view'])) {
   $newToday = (int)$pdo->query('SELECT COUNT(*) c FROM users WHERE created_at >= ' . $dayAgo)->fetch()['c'];
   $newWeek  = (int)$pdo->query('SELECT COUNT(*) c FROM users WHERE created_at >= ' . $weekAgo)->fetch()['c'];
 
+  // Live-ops analytics (tables may be empty on a brand-new install).
+  $active24 = 0; $active7 = 0; $richest = []; $pendingGrants = 0; $curAnn = null;
+  try {
+    $active24 = (int)$pdo->query('SELECT COUNT(*) c FROM leaderboard WHERE updated_at >= ' . $dayAgo)->fetch()['c'];
+    $active7  = (int)$pdo->query('SELECT COUNT(*) c FROM leaderboard WHERE updated_at >= ' . $weekAgo)->fetch()['c'];
+    $richest  = $pdo->query('SELECT name, net_worth FROM leaderboard ORDER BY net_worth DESC LIMIT 5')->fetchAll();
+  } catch (Throwable $e) { /* leaderboard table not created yet */ }
+  try {
+    $pendingGrants = (int)$pdo->query('SELECT COUNT(*) c FROM grants WHERE claimed_at IS NULL')->fetch()['c'];
+  } catch (Throwable $e) { /* grants table not created yet */ }
+  try {
+    $ar = $pdo->query('SELECT v FROM settings WHERE k = "announcement" LIMIT 1')->fetch();
+    if ($ar) $curAnn = json_decode($ar['v'], true);
+  } catch (Throwable $e) { /* settings table not created yet */ }
+
   $rows = $pdo->query(
     'SELECT u.id, u.email, u.name, u.created_at,
             s.snapshot, s.updated_at
@@ -181,13 +262,61 @@ if ($authed && isset($_GET['view'])) {
     </div>
   </div>
 
+  <?php if ($flash): ?><div class="warn"><?= h($flash) ?></div><?php endif; ?>
+
   <div class="cards">
     <div class="card"><div class="n"><?= $totalUsers ?></div><div class="l">Total users</div></div>
     <div class="card"><div class="n"><?= $newToday ?></div><div class="l">New today</div></div>
     <div class="card"><div class="n"><?= $newWeek ?></div><div class="l">New this week</div></div>
+    <div class="card"><div class="n"><?= $active24 ?></div><div class="l">Active 24h</div></div>
+    <div class="card"><div class="n"><?= $active7 ?></div><div class="l">Active 7d</div></div>
     <div class="card"><div class="n"><?= $totalSaves ?></div><div class="l">Saved games</div></div>
   </div>
 
+  <!-- Live ops: broadcast + grant -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:24px">
+    <form method="post" class="ops">
+      <input type="hidden" name="admin_action" value="broadcast">
+      <h3>📢 Broadcast announcement</h3>
+      <?php if (is_array($curAnn)): ?>
+        <div class="ann-cur">Live now: <b><?= h($curAnn['title'] ?? '') ?></b> — <?= h($curAnn['body'] ?? '') ?></div>
+      <?php endif; ?>
+      <input class="opsf" type="text" name="title" maxlength="120" placeholder="Title (e.g. Diwali event!)">
+      <textarea class="opsf" name="body" rows="2" maxlength="400" placeholder="Message shown to every player"></textarea>
+      <div class="row2">
+        <button type="submit">Send to all players</button>
+        <button type="submit" name="admin_action" value="clear_ann" class="ghost">Clear</button>
+      </div>
+    </form>
+
+    <form method="post" class="ops">
+      <input type="hidden" name="admin_action" value="grant">
+      <h3>🎁 Grant coins / XP</h3>
+      <input class="opsf" type="email" name="email" placeholder="Player email" required>
+      <div class="row2">
+        <input class="opsf" type="number" name="coins" placeholder="Coins" min="0">
+        <input class="opsf" type="number" name="xp" placeholder="XP" min="0">
+      </div>
+      <input class="opsf" type="text" name="reason" maxlength="200" placeholder="Reason (optional)">
+      <button type="submit">Grant<?= $pendingGrants ? " · {$pendingGrants} pending" : '' ?></button>
+    </form>
+  </div>
+
+  <?php if ($richest): ?>
+  <div class="section-label">🏆 Richest players</div>
+  <div class="scroll" style="margin-bottom:20px">
+    <table>
+      <thead><tr><th>#</th><th>Player</th><th class="num">Net worth</th></tr></thead>
+      <tbody>
+        <?php foreach ($richest as $ri => $rr): ?>
+          <tr><td><?= $ri + 1 ?></td><td><?= h($rr['name']) ?></td><td class="num"><?= inr($rr['net_worth']) ?></td></tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+  <?php endif; ?>
+
+  <div class="section-label">👥 All players</div>
   <div class="scroll">
   <table id="tbl">
     <thead>

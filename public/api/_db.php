@@ -147,6 +147,42 @@ function migrate(): void {
        INDEX (b)
      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
   );
+  $pdo->exec(
+    'CREATE TABLE IF NOT EXISTS settings (
+       k          VARCHAR(64) NOT NULL PRIMARY KEY,
+       v          TEXT        NOT NULL,
+       updated_at INT         NOT NULL DEFAULT 0
+     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+  );
+  $pdo->exec(
+    'CREATE TABLE IF NOT EXISTS grants (
+       id         VARCHAR(48) NOT NULL PRIMARY KEY,
+       user_id    VARCHAR(48) NOT NULL,
+       coins      INT         NOT NULL DEFAULT 0,
+       xp         INT         NOT NULL DEFAULT 0,
+       reason     VARCHAR(200) NOT NULL DEFAULT "",
+       created_at INT         NOT NULL DEFAULT 0,
+       claimed_at INT         NULL,
+       INDEX (user_id, claimed_at)
+     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+  );
+}
+
+/** Read a settings value (string) or null. */
+function settingGet(string $key): ?string {
+  $stmt = db()->prepare('SELECT v FROM settings WHERE k = ? LIMIT 1');
+  $stmt->execute([$key]);
+  $row = $stmt->fetch();
+  return $row ? $row['v'] : null;
+}
+
+/** Write a settings value. */
+function settingSet(string $key, string $value): void {
+  $stmt = db()->prepare(
+    'INSERT INTO settings (k, v, updated_at) VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE v = VALUES(v), updated_at = VALUES(updated_at)'
+  );
+  $stmt->execute([$key, $value, time()]);
 }
 
 /** Resolve the current user from the X-Token header, or null. */

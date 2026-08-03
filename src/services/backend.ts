@@ -257,6 +257,30 @@ class Persistence {
     }
   }
 
+  /** Claim admin coin/XP gifts (server consumes them). Null in local mode. */
+  async fetchGrants(): Promise<{ coins: number; xp: number; reason: string }[] | null> {
+    if (this.mode !== 'server') return null;
+    try {
+      const res = await apiFetch<{ grants: { coins: number; xp: number; reason: string }[] }>('grants.php');
+      return res.grants ?? [];
+    } catch {
+      return null;
+    }
+  }
+
+  /** Current owner announcement, or null. */
+  async fetchAnnouncement(): Promise<{ id: string; title: string; body: string } | null> {
+    if (this.mode !== 'server') return null;
+    try {
+      const res = await apiFetch<{ announcement: { id: string; title: string; body: string } | null }>(
+        'announcement.php'
+      );
+      return res.announcement ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async removeSnapshot(userId: string): Promise<void> {
     if (this.mode === 'server') {
       this.pending.delete(userId);
