@@ -112,3 +112,23 @@ export function getCareer(id: string | null | undefined): Career | undefined {
   if (!id) return undefined;
   return CAREERS.find((c) => c.id === id);
 }
+
+// ── Promotions ────────────────────────────────────────────────────────────
+/** Highest promotion tier (0-based, so 5 = six pay grades). */
+export const MAX_CAREER_LEVEL = 5;
+/** Salary raise per promotion level. */
+export const PROMO_RAISE = 0.12;
+/** In-game months required at the current grade before the next promotion. */
+export const PROMO_MONTHS = 6;
+
+/** Effective monthly salary for a career at a given promotion level. */
+export function careerSalary(career: Career, level: number): number {
+  const lvl = Math.max(0, Math.min(MAX_CAREER_LEVEL, level));
+  return Math.round(career.salary * (1 + lvl * PROMO_RAISE));
+}
+
+/** Rank title prefix for a promotion level, e.g. "Senior", "Lead". */
+export function careerRankLabel(level: number): string {
+  const ranks = ['Junior', 'Associate', 'Senior', 'Lead', 'Principal', 'Head'];
+  return ranks[Math.max(0, Math.min(ranks.length - 1, level))];
+}

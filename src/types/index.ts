@@ -271,6 +271,10 @@ export interface Player {
   earnedBadges: string[];
   /** Selected career id (drives monthly salary/expenses). Null until chosen. */
   careerId: string | null;
+  /** Promotion tier at the current job (0 = entry grade). */
+  careerLevel: number;
+  /** In-game month the current grade started (drives promotion eligibility). */
+  jobStartMonth: number;
 }
 
 /** A career the player works while investing — the tycoon cash-flow engine. */

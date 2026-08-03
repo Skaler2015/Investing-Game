@@ -24,7 +24,7 @@ import { Icon } from '../components/ui/Icon';
 import { AnimatedNumber } from '../components/ui/AnimatedNumber';
 import { useGameStore } from '../store/gameStore';
 import { resolveLevel } from '../data/levels';
-import { getCareer } from '../data/careers';
+import { getCareer, careerSalary } from '../data/careers';
 import {
   computeNetWorth,
   computePortfolioStats,
@@ -91,7 +91,7 @@ export function Dashboard() {
 
   // Cash-flow (tycoon economy).
   const career = getCareer(player.careerId);
-  const monthlyIncome = career?.salary ?? 0;
+  const monthlyIncome = career ? careerSalary(career, player.careerLevel) : 0;
   const monthlyExpenses = career?.expenses ?? 0;
   const passiveIncome = Math.round(stats.dailyPassiveIncome);
   const monthlyNet = monthlyIncome + passiveIncome - monthlyExpenses;

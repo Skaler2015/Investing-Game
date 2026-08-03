@@ -23,7 +23,7 @@ import type {
   PriceAlert,
 } from '../types';
 import { createInitialAssets, ASSET_CLASS_META } from '../data/assets';
-import { getCareer } from '../data/careers';
+import { getCareer, careerSalary, careerRankLabel, MAX_CAREER_LEVEL, PROMO_MONTHS } from '../data/careers';
 import { maybeLifeEvent } from '../data/lifeEvents';
 import { CREDIT, FD_PRODUCTS, loanProduct } from '../data/banking';
 import { getBusinessDef } from '../data/businesses';
@@ -55,6 +55,7 @@ import { playSound } from '../services/sound';
 import { selectDailyMissions } from '../data/missions';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { buildRivalEntries } from '../data/leaderboard';
+import { resolveLevel } from '../data/levels';
 import {
   stepMarket,
   ageEvents,
@@ -186,6 +187,7 @@ interface GameState extends GameSnapshot {
 
   // life / career
   setCareer: (careerId: string) => void;
+  requestPromotion: () => { ok: boolean; message: string };
 
   // banking
   depositSavings: (amount: number) => { ok: boolean; message: string };
@@ -261,6 +263,8 @@ function freshPlayer(name: string): Player {
     unlockedAchievements: [],
     earnedBadges: [],
     careerId: null,
+    careerLevel: 0,
+    jobStartMonth: 0,
   };
 }
 
@@ -360,7 +364,12 @@ function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
     spinLastDay: snap.spinLastDay ?? null,
     insurance: snap.insurance ?? [],
     scratchLastDay: snap.scratchLastDay ?? null,
-    player: { ...snap.player, careerId: snap.player.careerId ?? null },
+    player: {
+      ...snap.player,
+      careerId: snap.player.careerId ?? null,
+      careerLevel: snap.player.careerLevel ?? 0,
+      jobStartMonth: snap.player.jobStartMonth ?? 0,
+    },
   };
 }
 
@@ -696,13 +705,51 @@ export const useGameStore = create<GameState>((set, get) => ({
   setCareer: (careerId) => {
     const career = getCareer(careerId);
     if (!career) return;
-    set({ player: { ...get().player, careerId } });
+    const s = get();
+    const switching = s.player.careerId && s.player.careerId !== careerId;
+    // A new field starts you at the entry grade with a fresh tenure clock.
+    set({
+      player: {
+        ...s.player,
+        careerId,
+        careerLevel: switching ? 0 : s.player.careerLevel,
+        jobStartMonth: s.month,
+      },
+    });
     get().pushToast({
-      title: `Career: ${career.title}`,
-      message: `Salary ₹${career.salary.toLocaleString('en-IN')}/mo`,
+      title: switching ? `New job: ${career.title}` : `Career: ${career.title}`,
+      message: `Salary ₹${careerSalary(career, switching ? 0 : s.player.careerLevel).toLocaleString('en-IN')}/mo`,
       kind: 'success',
     });
     get().save();
+  },
+
+  requestPromotion: () => {
+    const s = get();
+    const career = getCareer(s.player.careerId);
+    if (!career) return { ok: false, message: 'Pick a career first.' };
+    if (s.player.careerLevel >= MAX_CAREER_LEVEL) {
+      return { ok: false, message: "You're already at the top grade. Try switching to a bigger job." };
+    }
+    const monthsInGrade = s.month - s.player.jobStartMonth;
+    if (monthsInGrade < PROMO_MONTHS) {
+      return { ok: false, message: `Keep working — eligible in ${PROMO_MONTHS - monthsInGrade} more month(s).` };
+    }
+    // Skill gate: your player level must keep pace with your seniority.
+    const level = resolveLevel(s.player.xp).level;
+    const needLevel = (s.player.careerLevel + 1) * 2;
+    if (level < needLevel) {
+      return { ok: false, message: `Reach player level ${needLevel} to earn this promotion (keep trading & learning).` };
+    }
+    const newLevel = s.player.careerLevel + 1;
+    set({ player: { ...s.player, careerLevel: newLevel, jobStartMonth: s.month } });
+    get().pushToast({
+      title: `🎉 Promoted to ${careerRankLabel(newLevel)} ${career.title}!`,
+      message: `New salary ₹${careerSalary(career, newLevel).toLocaleString('en-IN')}/mo`,
+      kind: 'reward',
+    });
+    get().save();
+    return { ok: true, message: 'Promoted!' };
   },
 
   depositSavings: (amount) => {
@@ -1375,7 +1422,7 @@ function advanceMonth(get: GetFn, set: SetFn) {
   const s = get();
   const month = s.month + 1;
   const career = getCareer(s.player.careerId);
-  const salary = career?.salary ?? 0;
+  const salary = career ? careerSalary(career, s.player.careerLevel) : 0;
   const expenses = career?.expenses ?? 0;
   const passive = Math.round(computePortfolioStats(s.holdings, s.assets).dailyPassiveIncome);
   const now = Date.now();

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { resolveLevel } from '../data/levels';
-import { getCareer } from '../data/careers';
+import { getCareer, careerSalary, careerRankLabel, MAX_CAREER_LEVEL, PROMO_MONTHS } from '../data/careers';
 import { computeNetWorth } from '../engine/economy';
 import { bankEquity } from '../engine/banking';
 import { businessesEquity } from '../engine/business';
@@ -185,17 +185,18 @@ export function Profile() {
           </div>
           <div className="col" style={{ gap: 3, flex: 1, minWidth: 0, textAlign: 'left' }}>
             <span style={{ fontWeight: 700, fontSize: 14.5 }}>
-              {career?.title ?? 'Choose a career'}
+              {career ? `${careerRankLabel(player.careerLevel)} ${career.title}` : 'Choose a career'}
             </span>
             {career && (
               <div className="row gap-8">
-                <span className="career-tag up">+{formatCurrency(career.salary)}/mo</span>
+                <span className="career-tag up">+{formatCurrency(careerSalary(career, player.careerLevel))}/mo</span>
                 <span className="career-tag down">−{formatCurrency(career.expenses)}/mo</span>
               </div>
             )}
           </div>
           <Pencil size={15} className="faint" />
         </button>
+        {career && <PromotionRow />}
 
         {/* Badges */}
         {player.earnedBadges.length > 0 && (
@@ -297,6 +298,49 @@ function StatTile({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+/** Promotion progress + request button on the profile. */
+function PromotionRow() {
+  const player = useGameStore((s) => s.player);
+  const month = useGameStore((s) => s.month);
+  const promote = useGameStore((s) => s.requestPromotion);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const career = getCareer(player.careerId);
+  if (!career) return null;
+
+  const atMax = player.careerLevel >= MAX_CAREER_LEVEL;
+  const monthsInGrade = Math.max(0, month - player.jobStartMonth);
+  const level = resolveLevel(player.xp).level;
+  const needLevel = (player.careerLevel + 1) * 2;
+  const nextSalary = careerSalary(career, Math.min(MAX_CAREER_LEVEL, player.careerLevel + 1));
+  const eligible = !atMax && monthsInGrade >= PROMO_MONTHS && level >= needLevel;
+
+  return (
+    <div className="card card-pad col" style={{ gap: 8, marginTop: 8 }}>
+      <div className="row between">
+        <span style={{ fontWeight: 700, fontSize: 13 }}>Promotion</span>
+        <span className="faint" style={{ fontSize: 11 }}>Grade {player.careerLevel + 1}/{MAX_CAREER_LEVEL + 1}</span>
+      </div>
+      {atMax ? (
+        <span className="faint" style={{ fontSize: 12 }}>
+          Top grade reached — switch to a bigger job for a higher ceiling.
+        </span>
+      ) : (
+        <>
+          <ProgressBar value={Math.min(1, monthsInGrade / PROMO_MONTHS)} />
+          <span className="faint" style={{ fontSize: 11.5 }}>
+            Tenure {Math.min(monthsInGrade, PROMO_MONTHS)}/{PROMO_MONTHS} mo · needs player Lv {needLevel} · next {formatCurrency(nextSalary)}/mo
+          </span>
+          <button className="btn btn-primary btn-block" disabled={!eligible} onClick={() => setMsg(promote().message)}>
+            Request promotion
+          </button>
+          {msg && <span className="faint" style={{ fontSize: 12 }}>{msg}</span>}
+        </>
+      )}
     </div>
   );
 }
