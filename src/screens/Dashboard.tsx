@@ -611,7 +611,7 @@ function FinancialHealthCard() {
   const color = score >= 85 ? 'var(--up)' : score >= 65 ? '#3b82f6' : score >= 40 ? 'var(--gold)' : 'var(--down)';
 
   return (
-    <div className="card card-pad col" style={{ gap: 10, marginTop: 12 }}>
+    <div className="card card-pad col rise-in" style={{ gap: 10, marginTop: 12 }}>
       <div className="row between">
         <span style={{ fontWeight: 700, fontSize: 13.5 }}>💪 Financial Health</span>
         <span style={{ fontWeight: 800, fontSize: 13, color }}>{label}</span>

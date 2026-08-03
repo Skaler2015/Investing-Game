@@ -21,6 +21,7 @@ import { Learn } from './screens/Learn';
 import { Settings } from './screens/Settings';
 import { AuthGate } from './screens/AuthGate';
 import { CareerSelect } from './screens/CareerSelect';
+import { DashboardSkeleton } from './components/ui/Skeleton';
 import type { ScreenId } from './types';
 
 const SCREENS: Record<ScreenId, () => JSX.Element> = {
@@ -52,9 +53,14 @@ function Splash() {
         className="splash-logo"
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        ₹
+        <motion.span
+          animate={{ opacity: [1, 0.75, 1] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          ₹
+        </motion.span>
       </motion.div>
       <motion.h1
         initial={{ opacity: 0, y: 8 }}
@@ -63,6 +69,9 @@ function Splash() {
       >
         Invest Master
       </motion.h1>
+      <div className="splash-bar" aria-hidden="true">
+        <div className="splash-bar-fill" />
+      </div>
       <span className="faint">Loading your portfolio…</span>
     </div>
   );
@@ -106,7 +115,7 @@ export default function App() {
         ) : !authUser ? (
           <AuthGate />
         ) : !initialized ? (
-          <Splash />
+          <DashboardSkeleton />
         ) : !careerId ? (
           <CareerSelect />
         ) : (
