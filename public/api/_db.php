@@ -109,6 +109,16 @@ function migrate(): void {
        updated_at INT         NOT NULL DEFAULT 0
      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
   );
+  $pdo->exec(
+    'CREATE TABLE IF NOT EXISTS leaderboard (
+       user_id    VARCHAR(48)  NOT NULL PRIMARY KEY,
+       name       VARCHAR(120) NOT NULL DEFAULT "",
+       net_worth  BIGINT       NOT NULL DEFAULT 0,
+       week_gain  DOUBLE       NOT NULL DEFAULT 0,
+       updated_at INT          NOT NULL DEFAULT 0,
+       INDEX (net_worth)
+     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+  );
 }
 
 /** Resolve the current user from the X-Token header, or null. */

@@ -19,6 +19,14 @@ import { STORAGE_SNAPSHOT_KEY } from '../store/constants';
 
 export type { AuthUser, AuthResult } from './auth';
 
+/** A row in the shared global leaderboard. */
+export interface LeaderRow {
+  id: string;
+  name: string;
+  netWorth: number;
+  weekGain: number;
+}
+
 type Mode = 'unknown' | 'server' | 'local';
 
 function toUser(u: ApiUser): AuthUser {
@@ -182,6 +190,30 @@ class Persistence {
     } catch {
       // Keep it queued so the next save() retries; local cache already holds it.
       this.pending.set(userId, snapshot);
+    }
+  }
+
+  // ---- leaderboard --------------------------------------------------------
+
+  /**
+   * Publish the player's net worth to the shared board and return the live
+   * standings. Returns null in local mode or on error (caller falls back to
+   * the offline simulated leaderboard).
+   */
+  async publishScore(
+    netWorth: number,
+    weekGain: number,
+    name: string
+  ): Promise<{ top: LeaderRow[]; rank: number; total: number } | null> {
+    if (this.mode !== 'server') return null;
+    try {
+      const res = await apiFetch<{ top: LeaderRow[]; rank: number; total: number }>('leaderboard.php', {
+        method: 'POST',
+        body: { netWorth: Math.round(netWorth), weekGain, name },
+      });
+      return { top: res.top ?? [], rank: res.rank ?? 0, total: res.total ?? 0 };
+    } catch {
+      return null;
     }
   }
 

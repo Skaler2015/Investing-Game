@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { Crown, TrendingUp, TrendingDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Crown, TrendingUp, TrendingDown, RefreshCw, Globe } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { useGameStore } from '../store/gameStore';
 import { computeNetWorth } from '../engine/economy';
 import { bankEquity } from '../engine/banking';
 import { businessesEquity } from '../engine/business';
 import { propertiesEquity } from '../engine/realEstate';
+import { persistence, type LeaderRow } from '../services/backend';
 import type { LeaderboardEntry } from '../types';
-import { formatCurrency, formatPct } from '../utils/format';
+import { formatCurrency, formatPct, formatNumber } from '../utils/format';
 
 type Board = 'global' | 'friends' | 'weekly';
 
@@ -17,11 +18,15 @@ export function Leaderboard() {
   const holdings = useGameStore((s) => s.holdings);
   const rivals = useGameStore((s) => s.leaderboard);
   const netWorthDayStart = useGameStore((s) => s.netWorthDayStart);
-  const [board, setBoard] = useState<Board>('global');
-
   const bank = useGameStore((s) => s.bank);
   const businesses = useGameStore((s) => s.businesses);
   const properties = useGameStore((s) => s.properties);
+  const [board, setBoard] = useState<Board>('global');
+
+  // Live (server) board state.
+  const [live, setLive] = useState<{ top: LeaderRow[]; rank: number; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const netWorth =
     computeNetWorth(player.cash, holdings, assets) +
     bankEquity(bank) +
@@ -30,6 +35,32 @@ export function Leaderboard() {
   const playerWeekly =
     netWorthDayStart > 0 ? ((netWorth - netWorthDayStart) / netWorthDayStart) * 100 : 0;
 
+  // Publish my score and fetch the live board on open (and on manual refresh).
+  const refresh = () => {
+    setLoading(true);
+    void persistence
+      .publishScore(netWorth, playerWeekly, player.name)
+      .then((res) => setLive(res))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Global tab uses the real server board when available ────────────────
+  const useLiveGlobal = board === 'global' && live !== null;
+
+  const liveEntries: LeaderboardEntry[] = (live?.top ?? []).map((r) => ({
+    id: r.id,
+    name: r.id === player.id ? `${r.name} (You)` : r.name,
+    netWorth: r.netWorth,
+    weeklyGain: r.weekGain,
+    isPlayer: r.id === player.id,
+    isFriend: false,
+  }));
+
+  // ── Offline / other tabs: simulated rivals + the player ─────────────────
   const playerEntry: LeaderboardEntry = {
     id: player.id,
     name: `${player.name} (You)`,
@@ -38,15 +69,15 @@ export function Leaderboard() {
     isPlayer: true,
     isFriend: true,
   };
-
-  let entries = [...rivals, playerEntry];
-  if (board === 'friends') entries = entries.filter((e) => e.isFriend || e.isPlayer);
-
-  entries.sort((a, b) =>
+  let simEntries = [...rivals, playerEntry];
+  if (board === 'friends') simEntries = simEntries.filter((e) => e.isFriend || e.isPlayer);
+  simEntries.sort((a, b) =>
     board === 'weekly' ? b.weeklyGain - a.weeklyGain : b.netWorth - a.netWorth
   );
 
+  const entries = useLiveGlobal ? liveEntries : simEntries;
   const podium = entries.slice(0, 3);
+  const meInList = useLiveGlobal && liveEntries.some((e) => e.isPlayer);
 
   return (
     <>
@@ -63,6 +94,27 @@ export function Leaderboard() {
             </button>
           ))}
         </div>
+
+        {/* Live status strip (global tab, server mode) */}
+        {board === 'global' && (
+          <div className="live-strip">
+            {live ? (
+              <>
+                <span className="live-badge"><Globe size={12} /> LIVE</span>
+                <span className="faint" style={{ fontSize: 12 }}>
+                  {formatNumber(live.total)} real player{live.total === 1 ? '' : 's'} · you’re #{live.rank}
+                </span>
+              </>
+            ) : (
+              <span className="faint" style={{ fontSize: 12 }}>
+                {loading ? 'Loading live rankings…' : 'Offline ranking (practice rivals)'}
+              </span>
+            )}
+            <button className="link-btn" onClick={refresh} disabled={loading} style={{ marginLeft: 'auto' }}>
+              <RefreshCw size={13} className={loading ? 'spin' : ''} /> Refresh
+            </button>
+          </div>
+        )}
 
         {/* Podium */}
         <div className="podium">
@@ -90,6 +142,20 @@ export function Leaderboard() {
             );
           })}
         </div>
+
+        {/* If you're outside the visible top on the live board, show your rank. */}
+        {useLiveGlobal && !meInList && live && (
+          <div className="rank-row me" style={{ marginTop: 8 }}>
+            <span className="rank-num">{live.rank}</span>
+            <div className="rank-avatar">{player.name.charAt(0).toUpperCase()}</div>
+            <span style={{ fontSize: 14, fontWeight: 700, flex: 1 }} className="truncate">
+              {player.name} (You)
+            </span>
+            <span className="mono" style={{ fontSize: 13, fontWeight: 700 }}>
+              {formatCurrency(netWorth)}
+            </span>
+          </div>
+        )}
 
         {/* Full list */}
         <div className="col" style={{ gap: 8, marginTop: 8 }}>
