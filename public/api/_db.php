@@ -132,6 +132,21 @@ function migrate(): void {
        INDEX (week, gain)
      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
   );
+  $pdo->exec(
+    'CREATE TABLE IF NOT EXISTS friend_codes (
+       user_id VARCHAR(48) NOT NULL PRIMARY KEY,
+       code    VARCHAR(12) NOT NULL UNIQUE
+     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+  );
+  $pdo->exec(
+    'CREATE TABLE IF NOT EXISTS friends (
+       a          VARCHAR(48) NOT NULL,
+       b          VARCHAR(48) NOT NULL,
+       created_at INT         NOT NULL DEFAULT 0,
+       PRIMARY KEY (a, b),
+       INDEX (b)
+     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+  );
 }
 
 /** Resolve the current user from the X-Token header, or null. */

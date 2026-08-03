@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Crown, TrendingUp, TrendingDown, RefreshCw, Globe } from 'lucide-react';
+import { Crown, TrendingUp, TrendingDown, RefreshCw, Globe, Copy, UserPlus, X, Users } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { useGameStore } from '../store/gameStore';
 import { computeNetWorth } from '../engine/economy';
@@ -28,6 +28,13 @@ export function Leaderboard() {
   const [weekly, setWeekly] = useState<{ top: LeaderRow[]; rank: number; total: number; endsIn: number } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Friends state (server-backed).
+  const [friendsData, setFriendsData] = useState<{ code: string; friends: LeaderRow[] } | null>(null);
+  const [friendsLoaded, setFriendsLoaded] = useState(false);
+  const [addCode, setAddCode] = useState('');
+  const [friendMsg, setFriendMsg] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
   const netWorth =
     computeNetWorth(player.cash, holdings, assets) +
     bankEquity(bank) +
@@ -49,6 +56,46 @@ export function Leaderboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load friends lazily the first time the Friends tab is opened.
+  const loadFriends = () => {
+    void persistence.friends('list').then((res) => {
+      setFriendsLoaded(true);
+      if (res.ok && res.data) setFriendsData(res.data);
+    });
+  };
+  useEffect(() => {
+    if (board === 'friends' && !friendsLoaded) loadFriends();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board]);
+
+  const addFriend = () => {
+    const code = addCode.trim().toUpperCase();
+    if (!code) return;
+    setFriendMsg(null);
+    void persistence.friends('add', { code }).then((res) => {
+      setFriendMsg(res.message ?? (res.ok ? 'Friend added' : 'Could not add friend'));
+      if (res.ok && res.data) {
+        setFriendsData(res.data);
+        setAddCode('');
+      }
+    });
+  };
+  const removeFriend = (id: string) => {
+    void persistence.friends('remove', { friendId: id }).then((res) => {
+      if (res.ok && res.data) setFriendsData(res.data);
+    });
+  };
+  const copyCode = () => {
+    if (!friendsData) return;
+    try {
+      void navigator.clipboard?.writeText(friendsData.code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const toEntries = (rows: LeaderRow[]): LeaderboardEntry[] =>
     rows.map((r) => ({
       id: r.id,
@@ -59,12 +106,17 @@ export function Leaderboard() {
       isFriend: false,
     }));
 
-  // ── Global / Weekly tabs use the real server board when available ───────
+  // ── Global / Weekly / Friends tabs use the real server board when able ──
   const useLiveGlobal = board === 'global' && live !== null;
   const useLiveWeekly = board === 'weekly' && weekly !== null;
-  const liveEntries: LeaderboardEntry[] = useLiveWeekly
-    ? toEntries(weekly!.top)
-    : toEntries(live?.top ?? []);
+  const useLiveFriends = board === 'friends' && friendsData !== null;
+
+  let liveEntries: LeaderboardEntry[] = [];
+  if (useLiveWeekly) liveEntries = toEntries(weekly!.top);
+  else if (useLiveFriends) {
+    const me: LeaderRow = { id: player.id, name: player.name, netWorth, weekGain: playerWeekly };
+    liveEntries = toEntries([me, ...friendsData!.friends]).sort((a, b) => b.netWorth - a.netWorth);
+  } else liveEntries = toEntries(live?.top ?? []);
 
   // ── Offline / other tabs: simulated rivals + the player ─────────────────
   const playerEntry: LeaderboardEntry = {
@@ -81,7 +133,7 @@ export function Leaderboard() {
     board === 'weekly' ? b.weeklyGain - a.weeklyGain : b.netWorth - a.netWorth
   );
 
-  const useLive = useLiveGlobal || useLiveWeekly;
+  const useLive = useLiveGlobal || useLiveWeekly || useLiveFriends;
   const entries = useLive ? liveEntries : simEntries;
   const podium = entries.slice(0, 3);
   const meInList = useLive && liveEntries.some((e) => e.isPlayer);
@@ -102,6 +154,62 @@ export function Leaderboard() {
             </button>
           ))}
         </div>
+
+        {/* Friends management (Friends tab) */}
+        {board === 'friends' && (
+          friendsData ? (
+            <div className="card card-pad col" style={{ gap: 12, marginTop: 10 }}>
+              <div className="row between">
+                <div className="col" style={{ gap: 2 }}>
+                  <span className="faint" style={{ fontSize: 11 }}>Your friend code</span>
+                  <span className="mono" style={{ fontSize: 20, fontWeight: 800, letterSpacing: '0.12em' }}>
+                    {friendsData.code}
+                  </span>
+                </div>
+                <button className="btn btn-ghost" onClick={copyCode}>
+                  <Copy size={14} /> {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <span className="faint" style={{ fontSize: 11.5 }}>
+                Share your code with friends. Add theirs below to compete together.
+              </span>
+              <div className="row gap-8">
+                <input
+                  className="amount-field mono"
+                  style={{ flex: 1, textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                  placeholder="ENTER CODE"
+                  maxLength={6}
+                  value={addCode}
+                  onChange={(e) => { setAddCode(e.target.value.toUpperCase()); setFriendMsg(null); }}
+                />
+                <button className="btn btn-primary" onClick={addFriend}>
+                  <UserPlus size={15} /> Add
+                </button>
+              </div>
+              {friendMsg && <div className="faint" style={{ fontSize: 12 }}>{friendMsg}</div>}
+              {friendsData.friends.length > 0 && (
+                <div className="col" style={{ gap: 6 }}>
+                  <span className="faint" style={{ fontSize: 11 }}>Your friends ({friendsData.friends.length})</span>
+                  {friendsData.friends.map((f) => (
+                    <div key={f.id} className="tool-row">
+                      <span style={{ fontSize: 13, fontWeight: 700 }} className="truncate">{f.name}</span>
+                      <button className="icon-x" onClick={() => removeFriend(f.id)} aria-label={`Remove ${f.name}`}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="live-strip">
+              <Users size={14} className="faint" />
+              <span className="faint" style={{ fontSize: 12 }}>
+                {!friendsLoaded ? 'Loading friends…' : 'Friends need the online server (offline rivals shown).'}
+              </span>
+            </div>
+          )
+        )}
 
         {/* Live status strip (global + weekly tabs) */}
         {(board === 'global' || board === 'weekly') && (

@@ -237,6 +237,26 @@ class Persistence {
     }
   }
 
+  /**
+   * Friends API (list / add / remove). Server mode only. Returns the caller's
+   * friend code + friend rows on success.
+   */
+  async friends(
+    action: 'list' | 'add' | 'remove',
+    payload: { code?: string; friendId?: string } = {}
+  ): Promise<{ ok: boolean; message?: string; data?: { code: string; friends: LeaderRow[] } }> {
+    if (this.mode !== 'server') return { ok: false, message: 'Friends need the online server.' };
+    try {
+      const res = await apiFetch<{ code: string; friends: LeaderRow[]; message?: string }>('friends.php', {
+        method: 'POST',
+        body: { action, ...payload },
+      });
+      return { ok: true, message: res.message ?? undefined, data: { code: res.code, friends: res.friends ?? [] } };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : 'Could not reach the server.' };
+    }
+  }
+
   async removeSnapshot(userId: string): Promise<void> {
     if (this.mode === 'server') {
       this.pending.delete(userId);
