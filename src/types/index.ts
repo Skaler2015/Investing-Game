@@ -15,7 +15,9 @@ export type AssetClass =
   | 'etf'
   | 'mutualfund'
   | 'bond'
-  | 'reit';
+  | 'reit'
+  | 'commodity'
+  | 'nft';
 
 export type RiskLevel = 'Low' | 'Medium' | 'High' | 'Very High';
 

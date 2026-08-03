@@ -237,6 +237,94 @@ export const ASSET_SEEDS: AssetSeed[] = [
     description: 'Malls and high-street retail. Higher yield, footfall-driven.',
     divYieldAnnual: 0.069,
   },
+
+  // ── US Stocks (global equities) ───────────────────────────────────────
+  {
+    id: 'us-apex', name: 'Apex Inc (US)', symbol: 'APEX', assetClass: 'stock',
+    risk: 'Medium', drift: 0.16, volatility: 0.02, dividendYield: 0.0005, price: 15200, minQty: 1,
+    description: 'US mega-cap consumer-tech giant. Global revenue, strong moat.',
+    sector: 'US Technology', marketCap: 250000000000000, pe: 31.2, eps: 487.1, ceo: 'T. Cook Jr.', divYieldAnnual: 0.006,
+  },
+  {
+    id: 'us-sunai', name: 'Sunrise AI (US)', symbol: 'SUNAI', assetClass: 'stock',
+    risk: 'Very High', drift: 0.28, volatility: 0.04, dividendYield: 0, price: 42000, minQty: 1,
+    description: 'US AI-chip leader riding the AI boom. Explosive but volatile.',
+    sector: 'Semiconductors', marketCap: 180000000000000, pe: 68.5, eps: 613.1, ceo: 'J. Huang II',
+  },
+  {
+    id: 'us-nova', name: 'Nova Motors (US)', symbol: 'NOVA', assetClass: 'stock',
+    risk: 'High', drift: 0.19, volatility: 0.033, dividendYield: 0, price: 21000, minQty: 1,
+    description: 'US electric-vehicle pioneer. Sentiment-driven mega swings.',
+    sector: 'US Automobile', marketCap: 70000000000000, pe: 54.0, eps: 388.9, ceo: 'E. Vaan',
+  },
+
+  // ── Precious metals & commodities ─────────────────────────────────────
+  {
+    id: 'com-silver', name: 'Silver', symbol: 'SILVER', assetClass: 'commodity',
+    risk: 'Medium', drift: 0.05, volatility: 0.012, dividendYield: 0, price: 92, minQty: 10,
+    description: 'Industrial + safe-haven metal. Cheaper and swingier than gold.',
+    sector: 'Precious Metals',
+  },
+  {
+    id: 'com-plat', name: 'Platinum', symbol: 'PLAT', assetClass: 'commodity',
+    risk: 'Medium', drift: 0.045, volatility: 0.013, dividendYield: 0, price: 2850, minQty: 1,
+    description: 'Rare industrial metal used in autos and electronics.',
+    sector: 'Precious Metals',
+  },
+  {
+    id: 'com-oil', name: 'Crude Oil', symbol: 'OIL', assetClass: 'commodity',
+    risk: 'High', drift: 0.03, volatility: 0.02, dividendYield: 0, price: 6800, minQty: 1,
+    description: 'The world’s key energy commodity. Reacts sharply to geopolitics.',
+    sector: 'Energy',
+  },
+
+  // ── Crypto (Solana, stablecoin, meme) ─────────────────────────────────
+  {
+    id: 'cry-sol', name: 'Solaris', symbol: 'SOLR', assetClass: 'crypto',
+    risk: 'Very High', drift: 0.32, volatility: 0.05, dividendYield: 0, price: 14500, minQty: 0.01,
+    description: 'Fast layer-1 blockchain. High throughput, high volatility.',
+    sector: 'Layer-1',
+  },
+  {
+    id: 'cry-usdr', name: 'StableRupee', symbol: 'USDR', assetClass: 'crypto',
+    risk: 'Low', drift: 0.0, volatility: 0.0008, dividendYield: 0.0016, price: 83, minQty: 1,
+    description: 'A rupee-pegged stablecoin. Parks crypto cash with tiny swings + yield.',
+    sector: 'Stablecoin', divYieldAnnual: 0.05,
+  },
+  {
+    id: 'cry-dmoon', name: 'DogeMoon', symbol: 'DMOON', assetClass: 'crypto',
+    risk: 'Very High', drift: 0.1, volatility: 0.09, dividendYield: 0, price: 0.42, minQty: 100,
+    description: 'A meme coin. Pure hype — moonshots and rug-pull-style crashes.',
+    sector: 'Meme',
+  },
+
+  // ── Venture Capital & index funds ─────────────────────────────────────
+  {
+    id: 'vc-nebula', name: 'Nebula Ventures', symbol: 'NEBV', assetClass: 'startup',
+    risk: 'Very High', drift: 0.26, volatility: 0.045, dividendYield: 0, price: 50000, minQty: 1,
+    description: 'A VC fund of early-stage bets. Illiquid feel, lottery-like upside.',
+    sector: 'Venture Capital',
+  },
+  {
+    id: 'etf-spx', name: 'S&P 500 Index Fund', symbol: 'SPX500', assetClass: 'etf',
+    risk: 'Low', drift: 0.11, volatility: 0.008, dividendYield: 0.0013, price: 4200, minQty: 1,
+    description: 'Tracks the 500 largest US companies. A classic diversified core holding.',
+    sector: 'US Index', expenseRatio: 0.0009, return1y: 0.121, divYieldAnnual: 0.014,
+  },
+
+  // ── NFTs (digital collectibles) ───────────────────────────────────────
+  {
+    id: 'nft-punk', name: 'PixelPunks NFT', symbol: 'PUNK', assetClass: 'nft',
+    risk: 'Very High', drift: 0.15, volatility: 0.07, dividendYield: 0, price: 185000, minQty: 1,
+    description: 'Blue-chip pixel-art NFT collection. Prestige-driven, wildly volatile.',
+    sector: 'Digital Collectibles',
+  },
+  {
+    id: 'nft-apes', name: 'MetaApes NFT', symbol: 'APES', assetClass: 'nft',
+    risk: 'Very High', drift: 0.12, volatility: 0.08, dividendYield: 0, price: 96000, minQty: 1,
+    description: 'Community-hyped avatar NFTs. Floor price swings on trends alone.',
+    sector: 'Digital Collectibles',
+  },
 ];
 
 /** Build fresh, fully-initialised Asset objects (with seeded history). */
@@ -261,4 +349,6 @@ export const ASSET_CLASS_META: Record<
   mutualfund: { label: 'Mutual Funds', icon: 'PieChart', color: '#14b8a6' },
   bond: { label: 'Bonds', icon: 'Scroll', color: '#a3a3a3' },
   reit: { label: 'REITs', icon: 'Building', color: '#22c55e' },
+  commodity: { label: 'Commodities', icon: 'Gem', color: '#94a3b8' },
+  nft: { label: 'NFTs', icon: 'Sparkles', color: '#a855f7' },
 };

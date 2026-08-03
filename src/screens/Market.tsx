@@ -26,10 +26,12 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'mutualfund', label: 'Mutual Funds' },
   { id: 'etf', label: 'ETFs' },
   { id: 'crypto', label: 'Crypto' },
+  { id: 'commodity', label: 'Commodities' },
   { id: 'bond', label: 'Bonds' },
   { id: 'reit', label: 'REITs' },
   { id: 'gold', label: 'Gold' },
   { id: 'realestate', label: 'Real Estate' },
+  { id: 'nft', label: 'NFTs' },
   { id: 'fd', label: 'Fixed Dep.' },
   { id: 'startup', label: 'Startups' },
 ];

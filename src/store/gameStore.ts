@@ -323,10 +323,22 @@ function freshBank(): BankState {
   return { savings: 0, deposits: [], loans: [], creditScore: CREDIT.start };
 }
 
+/**
+ * Merge any newly-shipped assets into a returning player's saved market so new
+ * instruments/classes appear without disturbing their existing positions or the
+ * live price history of assets they already have.
+ */
+function mergeNewAssets(existing: Asset[]): Asset[] {
+  const have = new Set(existing.map((a) => a.id));
+  const fresh = createInitialAssets().filter((a) => !have.has(a.id));
+  return fresh.length ? [...existing, ...fresh] : existing;
+}
+
 /** Backfill fields missing from snapshots saved by earlier versions. */
 function migrateSnapshot(snap: GameSnapshot): GameSnapshot {
   return {
     ...snap,
+    assets: mergeNewAssets(snap.assets ?? []),
     month: snap.month ?? 0,
     netWorthHistory:
       snap.netWorthHistory && snap.netWorthHistory.length > 0
