@@ -25,6 +25,7 @@ export function Leaderboard() {
 
   // Live (server) board state.
   const [live, setLive] = useState<{ top: LeaderRow[]; rank: number; total: number } | null>(null);
+  const [weekly, setWeekly] = useState<{ top: LeaderRow[]; rank: number; total: number; endsIn: number } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const netWorth =
@@ -35,30 +36,35 @@ export function Leaderboard() {
   const playerWeekly =
     netWorthDayStart > 0 ? ((netWorth - netWorthDayStart) / netWorthDayStart) * 100 : 0;
 
-  // Publish my score and fetch the live board on open (and on manual refresh).
+  // Publish my score and fetch the live boards (global + weekly) on open.
   const refresh = () => {
     setLoading(true);
-    void persistence
-      .publishScore(netWorth, playerWeekly, player.name)
-      .then((res) => setLive(res))
-      .finally(() => setLoading(false));
+    Promise.all([
+      persistence.publishScore(netWorth, playerWeekly, player.name).then((res) => setLive(res)),
+      persistence.publishWeekly(netWorth, player.name).then((res) => setWeekly(res)),
+    ]).finally(() => setLoading(false));
   };
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Global tab uses the real server board when available ────────────────
-  const useLiveGlobal = board === 'global' && live !== null;
+  const toEntries = (rows: LeaderRow[]): LeaderboardEntry[] =>
+    rows.map((r) => ({
+      id: r.id,
+      name: r.id === player.id ? `${r.name} (You)` : r.name,
+      netWorth: r.netWorth,
+      weeklyGain: r.weekGain,
+      isPlayer: r.id === player.id,
+      isFriend: false,
+    }));
 
-  const liveEntries: LeaderboardEntry[] = (live?.top ?? []).map((r) => ({
-    id: r.id,
-    name: r.id === player.id ? `${r.name} (You)` : r.name,
-    netWorth: r.netWorth,
-    weeklyGain: r.weekGain,
-    isPlayer: r.id === player.id,
-    isFriend: false,
-  }));
+  // ── Global / Weekly tabs use the real server board when available ───────
+  const useLiveGlobal = board === 'global' && live !== null;
+  const useLiveWeekly = board === 'weekly' && weekly !== null;
+  const liveEntries: LeaderboardEntry[] = useLiveWeekly
+    ? toEntries(weekly!.top)
+    : toEntries(live?.top ?? []);
 
   // ── Offline / other tabs: simulated rivals + the player ─────────────────
   const playerEntry: LeaderboardEntry = {
@@ -75,9 +81,11 @@ export function Leaderboard() {
     board === 'weekly' ? b.weeklyGain - a.weeklyGain : b.netWorth - a.netWorth
   );
 
-  const entries = useLiveGlobal ? liveEntries : simEntries;
+  const useLive = useLiveGlobal || useLiveWeekly;
+  const entries = useLive ? liveEntries : simEntries;
   const podium = entries.slice(0, 3);
-  const meInList = useLiveGlobal && liveEntries.some((e) => e.isPlayer);
+  const meInList = useLive && liveEntries.some((e) => e.isPlayer);
+  const myRank = useLiveWeekly ? weekly?.rank ?? 0 : live?.rank ?? 0;
 
   return (
     <>
@@ -95,14 +103,21 @@ export function Leaderboard() {
           ))}
         </div>
 
-        {/* Live status strip (global tab, server mode) */}
-        {board === 'global' && (
+        {/* Live status strip (global + weekly tabs) */}
+        {(board === 'global' || board === 'weekly') && (
           <div className="live-strip">
-            {live ? (
+            {board === 'global' && live ? (
               <>
                 <span className="live-badge"><Globe size={12} /> LIVE</span>
                 <span className="faint" style={{ fontSize: 12 }}>
                   {formatNumber(live.total)} real player{live.total === 1 ? '' : 's'} · you’re #{live.rank}
+                </span>
+              </>
+            ) : board === 'weekly' && weekly ? (
+              <>
+                <span className="live-badge"><Globe size={12} /> LEAGUE</span>
+                <span className="faint truncate" style={{ fontSize: 12 }}>
+                  {formatNumber(weekly.total)} player{weekly.total === 1 ? '' : 's'} · #{weekly.rank} · resets in {countdown(weekly.endsIn)}
                 </span>
               </>
             ) : (
@@ -144,9 +159,9 @@ export function Leaderboard() {
         </div>
 
         {/* If you're outside the visible top on the live board, show your rank. */}
-        {useLiveGlobal && !meInList && live && (
+        {useLive && !meInList && myRank > 0 && (
           <div className="rank-row me" style={{ marginTop: 8 }}>
-            <span className="rank-num">{live.rank}</span>
+            <span className="rank-num">{myRank}</span>
             <div className="rank-avatar">{player.name.charAt(0).toUpperCase()}</div>
             <span style={{ fontSize: 14, fontWeight: 700, flex: 1 }} className="truncate">
               {player.name} (You)
@@ -184,4 +199,15 @@ export function Leaderboard() {
       </div>
     </>
   );
+}
+
+/** Format seconds-until-reset as a compact "2d 5h" / "5h 12m" / "8m" string. */
+function countdown(seconds: number): string {
+  if (seconds <= 0) return 'soon';
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }

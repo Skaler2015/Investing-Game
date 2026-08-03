@@ -119,6 +119,19 @@ function migrate(): void {
        INDEX (net_worth)
      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
   );
+  $pdo->exec(
+    'CREATE TABLE IF NOT EXISTS weekly_league (
+       week       VARCHAR(12)  NOT NULL,
+       user_id    VARCHAR(48)  NOT NULL,
+       name       VARCHAR(120) NOT NULL DEFAULT "",
+       start_net  BIGINT       NOT NULL DEFAULT 0,
+       net_worth  BIGINT       NOT NULL DEFAULT 0,
+       gain       DOUBLE       NOT NULL DEFAULT 0,
+       updated_at INT          NOT NULL DEFAULT 0,
+       PRIMARY KEY (week, user_id),
+       INDEX (week, gain)
+     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+  );
 }
 
 /** Resolve the current user from the X-Token header, or null. */

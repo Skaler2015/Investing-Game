@@ -217,6 +217,26 @@ class Persistence {
     }
   }
 
+  /**
+   * Publish the player's net worth to this week's league and return the live
+   * weekly standings + countdown. Null in local mode / on error.
+   */
+  async publishWeekly(
+    netWorth: number,
+    name: string
+  ): Promise<{ top: LeaderRow[]; rank: number; total: number; endsIn: number } | null> {
+    if (this.mode !== 'server') return null;
+    try {
+      const res = await apiFetch<{ top: LeaderRow[]; rank: number; total: number; endsIn: number }>(
+        'weekly.php',
+        { method: 'POST', body: { netWorth: Math.round(netWorth), name } }
+      );
+      return { top: res.top ?? [], rank: res.rank ?? 0, total: res.total ?? 0, endsIn: res.endsIn ?? 0 };
+    } catch {
+      return null;
+    }
+  }
+
   async removeSnapshot(userId: string): Promise<void> {
     if (this.mode === 'server') {
       this.pending.delete(userId);
